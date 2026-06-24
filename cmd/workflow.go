@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bytetrade/hass-cli/internal/cmdutil"
+	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v3"

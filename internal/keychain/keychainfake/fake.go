@@ -5,7 +5,7 @@ package keychainfake
 import (
 	"sync"
 
-	"github.com/bytetrade/hass-cli/internal/keychain"
+	"github.com/beclab/hass-cli/internal/keychain"
 )
 
 // Fake is an in-memory KeychainAccess keyed by "service\x00account".

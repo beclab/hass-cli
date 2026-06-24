@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bytetrade/hass-cli/internal/cmdutil"
+	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
 )
 

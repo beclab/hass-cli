@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bytetrade/hass-cli/cmd"
-	"github.com/bytetrade/hass-cli/internal/client"
+	"github.com/beclab/hass-cli/cmd"
+	"github.com/beclab/hass-cli/internal/client"
 )
 
 // version is the default build version; override at build time via
 // -ldflags "-X main.version=...".
-var version = "0.1.0"
+var version = "0.0.1"
 
 func main() {
 	cmd.SetVersion(version)

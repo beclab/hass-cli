@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytetrade/hass-cli/internal/keychain"
+	"github.com/beclab/hass-cli/internal/keychain"
 )
 
 // TokenStore persists Home Assistant long-lived access tokens in the OS

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytetrade/hass-cli/internal/config"
+	"github.com/beclab/hass-cli/internal/config"
 )
 
 // Client exposes Home Assistant capabilities over a REST + WS facade. The WS

@@ -1,4 +1,4 @@
-module github.com/bytetrade/hass-cli
+module github.com/beclab/hass-cli
 
 go 1.26.2
 

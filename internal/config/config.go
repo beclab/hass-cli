@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/bytetrade/hass-cli/internal/profile"
+	"github.com/beclab/hass-cli/internal/profile"
 	"gopkg.in/yaml.v3"
 )
 

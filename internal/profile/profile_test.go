@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytetrade/hass-cli/internal/keychain/keychainfake"
+	"github.com/beclab/hass-cli/internal/keychain/keychainfake"
 )
 
 func b64(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }

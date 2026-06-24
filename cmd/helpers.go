@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bytetrade/hass-cli/internal/client"
-	"github.com/bytetrade/hass-cli/internal/cmdutil"
-	"github.com/bytetrade/hass-cli/internal/output"
+	"github.com/beclab/hass-cli/internal/client"
+	"github.com/beclab/hass-cli/internal/cmdutil"
+	"github.com/beclab/hass-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 

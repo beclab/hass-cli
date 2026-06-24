@@ -15,11 +15,11 @@ import (
 	"github.com/tidwall/gjson"
 	"golang.org/x/term"
 
-	"github.com/bytetrade/hass-cli/internal/client"
-	"github.com/bytetrade/hass-cli/internal/cmdutil"
-	"github.com/bytetrade/hass-cli/internal/config"
-	"github.com/bytetrade/hass-cli/internal/keychain"
-	"github.com/bytetrade/hass-cli/internal/profile"
+	"github.com/beclab/hass-cli/internal/client"
+	"github.com/beclab/hass-cli/internal/cmdutil"
+	"github.com/beclab/hass-cli/internal/config"
+	"github.com/beclab/hass-cli/internal/keychain"
+	"github.com/beclab/hass-cli/internal/profile"
 )
 
 func newProfileCmd(f *cmdutil.Factory) *cobra.Command {

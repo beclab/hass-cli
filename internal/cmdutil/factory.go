@@ -5,9 +5,9 @@ package cmdutil
 import (
 	"os"
 
-	"github.com/bytetrade/hass-cli/internal/client"
-	"github.com/bytetrade/hass-cli/internal/config"
-	"github.com/bytetrade/hass-cli/internal/output"
+	"github.com/beclab/hass-cli/internal/client"
+	"github.com/beclab/hass-cli/internal/config"
+	"github.com/beclab/hass-cli/internal/output"
 )
 
 // Factory carries resolved global flags and lazily builds shared dependencies.

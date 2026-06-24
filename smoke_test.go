@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bytetrade/hass-cli/cmd"
+	"github.com/beclab/hass-cli/cmd"
 	"github.com/coder/websocket"
 )
 

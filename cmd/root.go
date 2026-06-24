@@ -43,6 +43,7 @@ func NewRootCommand() *cobra.Command {
 
 	root.AddCommand(
 		newVersionCmd(),
+		newProfileCmd(f),
 		newPingCmd(f),
 		newConfigCmd(f),
 		newStateCmd(f),

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/bytetrade/hass-cli/internal/profile"
 	"gopkg.in/yaml.v3"
 )
 
@@ -31,19 +32,25 @@ type profileFile struct {
 	Profiles map[string]Config `yaml:"profiles"`
 }
 
-// Resolve merges profile file < environment < explicit flag values. Flag values
-// are only applied when non-zero so that lower-precedence sources show through.
+// Resolve merges profile sources < environment < explicit flag values. The
+// profile source is the keychain-backed profiles.json index; a legacy
+// config.yaml (with inline tokens) is consulted as a fallback so older setups
+// keep working. Flag values are only applied when non-zero so that
+// lower-precedence sources show through.
 func Resolve(profileName, server, token string, insecure bool, timeout int) (*Config, error) {
 	cfg := &Config{TimeoutSeconds: 10}
 
-	if fileCfg, name, err := loadProfile(profileName); err != nil {
+	if idxCfg, found, err := loadFromIndex(profileName); err != nil {
+		return nil, err
+	} else if found {
+		cfg = idxCfg
+	} else if fileCfg, _, err := loadProfile(profileName); err != nil {
 		return nil, err
 	} else if fileCfg != nil {
 		cfg = fileCfg
-		if cfg.TimeoutSeconds == 0 {
-			cfg.TimeoutSeconds = 10
-		}
-		_ = name
+	}
+	if cfg.TimeoutSeconds == 0 {
+		cfg.TimeoutSeconds = 10
 	}
 
 	if v := os.Getenv("HASS_SERVER"); v != "" {
@@ -123,6 +130,38 @@ func configDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(base, "hass-cli"), nil
+}
+
+// loadFromIndex resolves a profile from the keychain-backed profiles.json
+// index. When profileName is empty the current profile is used. Returns
+// found=false (no error) when the requested/current profile is absent, so the
+// caller can fall back to the legacy config.yaml.
+func loadFromIndex(profileName string) (*Config, bool, error) {
+	idx, err := profile.Load()
+	if err != nil {
+		return nil, false, err
+	}
+	var e *profile.Entry
+	if profileName != "" {
+		e = idx.Find(profileName)
+	} else {
+		e = idx.Current()
+	}
+	if e == nil {
+		return nil, false, nil
+	}
+	cfg := &Config{
+		Server:         e.Server,
+		Insecure:       e.Insecure,
+		TimeoutSeconds: e.Timeout,
+	}
+	store := profile.NewTokenStore()
+	tok, err := store.Get(e.Name)
+	if err != nil && !errors.Is(err, profile.ErrTokenNotFound) {
+		return nil, false, fmt.Errorf("read token for profile %q: %w", e.Name, err)
+	}
+	cfg.Token = tok
+	return cfg, true, nil
 }
 
 // loadProfile reads the named profile (or the file default) if a config file

@@ -251,6 +251,40 @@ func TestSmoke(t *testing.T) {
 	}
 }
 
+// TestProfileFlow exercises login → list → current → show → remove end to end
+// against the mock, using a temp config dir (and data dir for the file-backed
+// keychain). The trailing remove purges the keychain service it created.
+func TestProfileFlow(t *testing.T) {
+	srv := mockHA(t)
+	t.Setenv("HASS_CLI_CONFIG_DIR", t.TempDir())
+	t.Setenv("HASS_CLI_DATA_DIR", t.TempDir())
+
+	out := run(t, "profile", "login", "home", "--server", srv.URL, "--token", "test-token")
+	if !strings.Contains(out, "logged in") || !strings.Contains(out, "Mock") {
+		t.Fatalf("login output unexpected: %s", out)
+	}
+
+	out = run(t, "profile", "list")
+	if !strings.Contains(out, "home") || !strings.Contains(out, srv.URL) {
+		t.Fatalf("list missing profile: %s", out)
+	}
+
+	out = run(t, "profile", "current")
+	if !strings.Contains(out, "home") {
+		t.Fatalf("current unexpected: %s", out)
+	}
+
+	out = run(t, "profile", "show", "home")
+	if !strings.Contains(out, "server:") || strings.Contains(out, "test-token") {
+		t.Fatalf("show should mask token: %s", out)
+	}
+
+	out = run(t, "profile", "remove", "home")
+	if !strings.Contains(out, "removed profile") {
+		t.Fatalf("remove unexpected: %s", out)
+	}
+}
+
 // TestValidation checks that write commands reject an empty --data locally.
 func TestValidation(t *testing.T) {
 	srv := mockHA(t)

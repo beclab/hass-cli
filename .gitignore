@@ -1,0 +1,6 @@
+/hass-cli
+/hass-cli.exe
+*.exe
+*.out
+dist/
+.env

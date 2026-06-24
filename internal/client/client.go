@@ -5,6 +5,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -148,6 +149,74 @@ func (c *Client) ErrorLog(ctx context.Context) (string, error) {
 // "floor", "label" via config/<name>_registry/list.
 func (c *Client) ListRegistry(ctx context.Context, name string) (json.RawMessage, error) {
 	return c.WS(ctx, map[string]any{"type": fmt.Sprintf("config/%s_registry/list", name)})
+}
+
+// SystemHealthInfo collects integration system-health data. The
+// system_health/info command is subscription-style: HA acknowledges with an
+// empty result, then streams an "initial" snapshot, per-key "update" events,
+// and a terminating "finish" event. This assembles them into a single object.
+func (c *Client) SystemHealthInfo(ctx context.Context) (json.RawMessage, error) {
+	conn, err := c.wsConnect(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	domains := map[string]map[string]any{}
+	errFinished := errors.New("finished")
+
+	subCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	subErr := conn.subscribe(subCtx, map[string]any{"type": "system_health/info"}, func(ev json.RawMessage) error {
+		var env struct {
+			Type    string          `json:"type"`
+			Data    json.RawMessage `json:"data"`
+			Domain  string          `json:"domain"`
+			Key     string          `json:"key"`
+			Success *bool           `json:"success"`
+			Error   json.RawMessage `json:"error"`
+		}
+		if err := json.Unmarshal(ev, &env); err != nil {
+			return err
+		}
+		switch env.Type {
+		case "initial":
+			var snapshot map[string]map[string]any
+			if err := json.Unmarshal(env.Data, &snapshot); err != nil {
+				return err
+			}
+			for d, entry := range snapshot {
+				domains[d] = entry
+			}
+		case "update":
+			entry := domains[env.Domain]
+			if entry == nil {
+				entry = map[string]any{}
+				domains[env.Domain] = entry
+			}
+			info, _ := entry["info"].(map[string]any)
+			if info == nil {
+				info = map[string]any{}
+				entry["info"] = info
+			}
+			if env.Success != nil && *env.Success {
+				var v any
+				_ = json.Unmarshal(env.Data, &v)
+				info[env.Key] = v
+			} else {
+				var v any
+				_ = json.Unmarshal(env.Error, &v)
+				info[env.Key] = v
+			}
+		case "finish":
+			return errFinished
+		}
+		return nil
+	})
+	if subErr != nil && !errors.Is(subErr, errFinished) {
+		return nil, subErr
+	}
+	return json.Marshal(domains)
 }
 
 // --- supervisor (via Core proxy) -----------------------------------------

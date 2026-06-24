@@ -25,7 +25,11 @@ func newRawCmds(f *cmdutil.Factory) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var body any
 			if apiData != "" {
-				if err := json.Unmarshal([]byte(apiData), &body); err != nil {
+				raw, err := readDataArg(apiData)
+				if err != nil {
+					return err
+				}
+				if err := json.Unmarshal(raw, &body); err != nil {
 					return fmt.Errorf("invalid --data JSON: %w", err)
 				}
 			}
@@ -41,7 +45,7 @@ func newRawCmds(f *cmdutil.Factory) *cobra.Command {
 			return renderRaw(f, raw)
 		},
 	}
-	apiCmd.Flags().StringVar(&apiData, "data", "", "Request body as JSON")
+	apiCmd.Flags().StringVar(&apiData, "data", "", "Request body as JSON (or @file.json)")
 	parent.AddCommand(apiCmd)
 
 	var wsData string
@@ -51,14 +55,12 @@ func newRawCmds(f *cmdutil.Factory) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"type": args[0]}
-			if wsData != "" {
-				var fields map[string]any
-				if err := json.Unmarshal([]byte(wsData), &fields); err != nil {
-					return fmt.Errorf("invalid --data JSON: %w", err)
-				}
-				for k, v := range fields {
-					payload[k] = v
-				}
+			fields, err := parseDataObject(wsData)
+			if err != nil {
+				return err
+			}
+			for k, v := range fields {
+				payload[k] = v
 			}
 			c, err := f.Client()
 			if err != nil {
@@ -72,7 +74,7 @@ func newRawCmds(f *cmdutil.Factory) *cobra.Command {
 			return renderRaw(f, raw)
 		},
 	}
-	wsCmd.Flags().StringVar(&wsData, "data", "", "Extra command fields as a JSON object")
+	wsCmd.Flags().StringVar(&wsData, "data", "", "Extra command fields as a JSON object (or @file.json)")
 	parent.AddCommand(wsCmd)
 
 	return parent

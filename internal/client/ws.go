@@ -25,13 +25,13 @@ type wsConn struct {
 
 // wsMessage is the envelope used for every frame on the HA WebSocket API.
 type wsMessage struct {
-	ID      int64           `json:"id,omitempty"`
-	Type    string          `json:"type"`
-	Success *bool           `json:"success,omitempty"`
-	Result  json.RawMessage `json:"result,omitempty"`
-	Event   json.RawMessage `json:"event,omitempty"`
-	Error   *wsError        `json:"error,omitempty"`
-	HAVersion string        `json:"ha_version,omitempty"`
+	ID        int64           `json:"id,omitempty"`
+	Type      string          `json:"type"`
+	Success   *bool           `json:"success,omitempty"`
+	Result    json.RawMessage `json:"result,omitempty"`
+	Event     json.RawMessage `json:"event,omitempty"`
+	Error     *wsError        `json:"error,omitempty"`
+	HAVersion string          `json:"ha_version,omitempty"`
 }
 
 type wsError struct {

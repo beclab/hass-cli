@@ -60,6 +60,25 @@ hass-cli raw ws get_config
 hass-cli raw ws supervisor/api --data '{"endpoint":"/addons","method":"get"}'
 ```
 
+REST paths are relative to `/api`, but a leading `/api/` (or `api/`) is tolerated, so values copied from docs still resolve.
+
+## Passing JSON with `--data` (avoid shell quoting traps)
+
+Every `--data` flag accepts either inline JSON or `@path` to read JSON from a
+file. On Windows PowerShell, inline JSON quoting is fragile (PowerShell strips
+inner `"`), so **prefer `@file.json`** there:
+
+```bash
+# portable: read JSON from a file
+hass-cli registry area create --data @area.json
+
+# inline (bash/zsh): single-quote the whole object
+hass-cli registry area create --data '{"name":"Garage"}'
+
+# inline (PowerShell): escape inner quotes with backslash
+hass-cli registry area create --data '{\"name\":\"Garage\"}'
+```
+
 ## Auth-error recovery
 
 | Symptom | Cause | Fix |

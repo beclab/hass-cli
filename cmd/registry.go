@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/bytetrade/hass-cli/internal/cmdutil"
@@ -52,19 +51,29 @@ func newRegistryCmd(f *cmdutil.Factory, name string) *cobra.Command {
 
 func newRegistryOpCmd(f *cmdutil.Factory, name, op string) *cobra.Command {
 	var dataJSON string
+	idKey := name + "_id"
+	// create takes only --data; update/delete require the entry id positionally.
+	use := op
+	args := cobra.NoArgs
+	if op != "create" {
+		use = op + " <id>"
+		args = cobra.ExactArgs(1)
+	}
 	c := &cobra.Command{
-		Use:   op,
-		Short: fmt.Sprintf("%s a %s registry entry (--data JSON)", op, name),
+		Use:   use,
+		Short: fmt.Sprintf("%s a %s registry entry", op, name),
+		Args:  args,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			payload := map[string]any{"type": fmt.Sprintf("config/%s_registry/%s", name, op)}
-			if dataJSON != "" {
-				var fields map[string]any
-				if err := json.Unmarshal([]byte(dataJSON), &fields); err != nil {
-					return fmt.Errorf("invalid --data JSON: %w", err)
-				}
-				for k, v := range fields {
-					payload[k] = v
-				}
+			if op != "create" {
+				payload[idKey] = args[0]
+			}
+			fields, err := parseDataObject(dataJSON)
+			if err != nil {
+				return err
+			}
+			for k, v := range fields {
+				payload[k] = v
 			}
 			cl, err := f.Client()
 			if err != nil {
@@ -78,6 +87,6 @@ func newRegistryOpCmd(f *cmdutil.Factory, name, op string) *cobra.Command {
 			return renderRaw(f, raw)
 		},
 	}
-	c.Flags().StringVar(&dataJSON, "data", "", "Operation fields as a JSON object")
+	c.Flags().StringVar(&dataJSON, "data", "", "Operation fields as a JSON object (or @file.json)")
 	return c
 }

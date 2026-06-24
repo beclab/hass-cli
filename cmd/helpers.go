@@ -2,9 +2,44 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
 
 	"github.com/bytetrade/hass-cli/internal/cmdutil"
 )
+
+// parseDataObject decodes a --data flag into a JSON object. As a convenience
+// (and to sidestep shell quoting of inline JSON, especially on PowerShell), a
+// value of the form "@path" reads the JSON from a file. An empty value yields
+// a nil map.
+func parseDataObject(data string) (map[string]any, error) {
+	if data == "" {
+		return nil, nil
+	}
+	raw, err := readDataArg(data)
+	if err != nil {
+		return nil, err
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, fmt.Errorf("invalid --data JSON: %w", err)
+	}
+	return fields, nil
+}
+
+// readDataArg returns the raw bytes for a --data style argument, resolving a
+// leading "@" to a file path.
+func readDataArg(data string) ([]byte, error) {
+	if strings.HasPrefix(data, "@") {
+		b, err := os.ReadFile(strings.TrimPrefix(data, "@"))
+		if err != nil {
+			return nil, fmt.Errorf("read --data file: %w", err)
+		}
+		return b, nil
+	}
+	return []byte(data), nil
+}
 
 // renderRaw decodes a raw JSON payload and renders it via the factory's
 // configured output format.

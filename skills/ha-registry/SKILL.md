@@ -26,24 +26,31 @@ hass-cli registry floor list
 hass-cli registry label list
 ```
 
-## Mutate (--data is the WS command's fields as JSON)
+## Mutate
+
+`create` takes only `--data` (the new entry's fields). `update` and `delete`
+take the entry **id as a positional argument** — the CLI injects it as the
+correct `<kind>_id` key for you. Extra `--data` fields are merged in.
 
 ```bash
-# Create an area
+# Create an area (id is derived from the name by HA)
 hass-cli registry area create --data '{"name":"Garage"}'
 
-# Rename an area
-hass-cli registry area update --data '{"area_id":"garage","name":"Garage Bay"}'
+# Rename an area (positional id -> area_id)
+hass-cli registry area update garage --data '{"name":"Garage Bay"}'
 
 # Assign a device to an area
-hass-cli registry device update --data '{"device_id":"<id>","area_id":"garage"}'
+hass-cli registry device update <device_id> --data '{"area_id":"garage"}'
 
-# Move an entity to an area / hide it / rename it
-hass-cli registry entity update --data '{"entity_id":"light.x","area_id":"garage","name":"Bay Light"}'
+# Move an entity to an area / rename it
+hass-cli registry entity update light.x --data '{"area_id":"garage","name":"Bay Light"}'
 
 # Delete
-hass-cli registry area delete --data '{"area_id":"garage"}'
+hass-cli registry area delete garage
 ```
+
+> `--data` also accepts `@file.json`; on PowerShell prefer that over inline JSON
+> (see ha-shared for the quoting note).
 
 ## Tips
 

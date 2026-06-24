@@ -49,12 +49,19 @@ hass-cli event fire my_event --data '{"foo":"bar"}'
 hass-cli event watch state_changed         # stream events (Ctrl-C to stop)
 hass-cli template '{{ states("sun.sun") }}'
 hass-cli registry area list                # area/device/entity/floor/label
+hass-cli registry area create --data '{"name":"Garage"}'
+hass-cli registry area update garage --data '{"name":"Garage Bay"}'  # id is positional
+hass-cli registry area delete garage
 hass-cli workflow automation list
 hass-cli workflow automation save my_auto --file my_auto.yaml
+hass-cli system health                     # integration system-health report
 ```
 
 Output format: `-o json|yaml|table|ndjson` (table is default). Shape tables with
 `--columns ENTITY=entity_id,STATE=state` and `--sort-by`.
+
+Any `--data` flag also accepts `@file.json` to read JSON from a file. On Windows
+PowerShell prefer `@file.json`, since inline JSON quoting is unreliable there.
 
 ### Raw passthrough (full coverage)
 

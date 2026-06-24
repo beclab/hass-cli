@@ -43,7 +43,11 @@ func (c *restClient) do(ctx context.Context, method, path string, body any) (jso
 		reader = bytes.NewReader(data)
 	}
 
-	url := c.baseURL + "/" + strings.TrimLeft(path, "/")
+	// baseURL already ends in /api; tolerate callers passing "/api/..." or
+	// "api/..." so raw passthrough paths copied from docs still resolve.
+	path = strings.TrimLeft(path, "/")
+	path = strings.TrimPrefix(path, "api/")
+	url := c.baseURL + "/" + path
 	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
 		return nil, err

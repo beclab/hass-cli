@@ -25,7 +25,7 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 				return err
 			}
 			defer c.Close()
-			raw, err := c.WS(cmd.Context(), map[string]any{"type": "system_health/info"})
+			raw, err := c.SystemHealthInfo(cmd.Context())
 			if err != nil {
 				return err
 			}

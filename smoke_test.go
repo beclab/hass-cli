@@ -79,14 +79,35 @@ func mockHA(t *testing.T) *httptest.Server {
 			var msg map[string]any
 			_ = json.Unmarshal(data, &msg)
 			id := msg["id"]
+
+			// system_health/info is subscription-style: ack with an empty
+			// result, then stream an "initial" snapshot and a "finish" event.
+			if msg["type"] == "system_health/info" {
+				ack, _ := json.Marshal(map[string]any{"id": id, "type": "result", "success": true})
+				_ = c.Write(ctx, websocket.MessageText, ack)
+				initial, _ := json.Marshal(map[string]any{
+					"id": id, "type": "event",
+					"event": map[string]any{
+						"type": "initial",
+						"data": map[string]any{
+							"homeassistant": map[string]any{"info": map[string]any{"version": "test"}},
+						},
+					},
+				})
+				_ = c.Write(ctx, websocket.MessageText, initial)
+				finish, _ := json.Marshal(map[string]any{
+					"id": id, "type": "event", "event": map[string]any{"type": "finish"},
+				})
+				_ = c.Write(ctx, websocket.MessageText, finish)
+				continue
+			}
+
 			var result any
 			switch msg["type"] {
 			case "get_config":
 				result = map[string]any{"version": "test"}
 			case "config/area_registry/list":
 				result = []map[string]any{{"area_id": "kitchen", "name": "Kitchen"}}
-			case "system_health/info":
-				result = map[string]any{"homeassistant": map[string]any{"version": "test"}}
 			case "repairs/list_issues":
 				result = map[string]any{"issues": []any{}}
 			case "supervisor/api":

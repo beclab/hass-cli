@@ -1,6 +1,6 @@
 # Install hass-cli on Windows by downloading the matching release tarball.
 #
-#   irm https://raw.githubusercontent.com/bytetrade/hass-cli/main/scripts/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/beclab/hass-cli/main/scripts/install.ps1 | iex
 #
 # Environment / params:
 #   -Version   release version to install (default: latest)
@@ -12,7 +12,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$repo = 'bytetrade/hass-cli'
+$repo = 'beclab/hass-cli'
 
 if (-not $Version) { $Version = 'latest' }
 

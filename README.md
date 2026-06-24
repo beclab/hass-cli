@@ -7,7 +7,7 @@ It mirrors how the Home Assistant frontend calls Core, exposing typed commands
 for the common surfaces plus a `raw` passthrough for everything else, and agent
 **skills** that teach an AI assistant how to drive them.
 
-Version: `0.1.0`.
+Version: `0.0.1`.
 
 ## Install
 
@@ -15,24 +15,24 @@ Pick whichever fits your environment:
 
 ```bash
 # npm / npx (downloads the matching prebuilt binary):
-npx @bytetrade/hass-cli@latest --help
-npm install -g @bytetrade/hass-cli
+npx @olares/hass-cli@latest --help
+npm install -g @olares/hass-cli
 
 # curl | sh (Linux/macOS): installs to /usr/local/bin or ~/.local/bin
-curl -fsSL https://raw.githubusercontent.com/bytetrade/hass-cli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/beclab/hass-cli/main/scripts/install.sh | sh
 
 # PowerShell (Windows):
-irm https://raw.githubusercontent.com/bytetrade/hass-cli/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/beclab/hass-cli/main/scripts/install.ps1 | iex
 
 # Go toolchain:
-go install github.com/bytetrade/hass-cli@latest
+go install github.com/beclab/hass-cli@latest
 
 # from source:
 go build -o hass-cli .
 ```
 
 Or download a release archive from
-[GitHub Releases](https://github.com/bytetrade/hass-cli/releases) and put the
+[GitHub Releases](https://github.com/beclab/hass-cli/releases) and put the
 binary on your PATH.
 
 ## Configure

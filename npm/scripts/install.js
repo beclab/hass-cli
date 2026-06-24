@@ -21,7 +21,7 @@ const PLATFORM_MAP = {
   'win32-arm64': 'windows_arm64',
 };
 
-const GH_BASE = 'https://github.com/bytetrade/hass-cli/releases/download';
+const GH_BASE = 'https://github.com/beclab/hass-cli/releases/download';
 const MIRROR_BASE = process.env.HASS_CLI_DOWNLOAD_MIRROR || '';
 
 const SKIP = process.env.HASS_CLI_SKIP_DOWNLOAD === '1';
@@ -50,7 +50,7 @@ function urls() {
 
 function get(url, redirectsLeft = 8) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { headers: { 'User-Agent': '@bytetrade/hass-cli postinstall' } }, (res) => {
+    const req = https.get(url, { headers: { 'User-Agent': '@olares/hass-cli postinstall' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         if (redirectsLeft <= 0) {
           reject(new Error(`too many redirects fetching ${url}`));
@@ -84,17 +84,17 @@ async function downloadAndExtract(url) {
 
 async function main() {
   if (SKIP) {
-    console.log('[@bytetrade/hass-cli] HASS_CLI_SKIP_DOWNLOAD=1 set, skipping vendor download.');
+    console.log('[@olares/hass-cli] HASS_CLI_SKIP_DOWNLOAD=1 set, skipping vendor download.');
     return;
   }
   if (PLACEHOLDER) {
-    console.log('[@bytetrade/hass-cli] package version is the placeholder; skipping vendor download.');
-    console.log('[@bytetrade/hass-cli] (CI sets the real version before publish.)');
+    console.log('[@olares/hass-cli] package version is the placeholder; skipping vendor download.');
+    console.log('[@olares/hass-cli] (CI sets the real version before publish.)');
     return;
   }
   if (!target) {
-    console.error(`[@bytetrade/hass-cli] unsupported platform: ${platformKey}`);
-    console.error('[@bytetrade/hass-cli] Supported:', Object.keys(PLATFORM_MAP).join(', '));
+    console.error(`[@olares/hass-cli] unsupported platform: ${platformKey}`);
+    console.error('[@olares/hass-cli] Supported:', Object.keys(PLATFORM_MAP).join(', '));
     process.exit(1);
   }
 
@@ -103,13 +103,13 @@ async function main() {
   const tried = [];
   for (const url of urls()) {
     try {
-      console.log(`[@bytetrade/hass-cli] downloading ${url}`);
+      console.log(`[@olares/hass-cli] downloading ${url}`);
       await downloadAndExtract(url);
       if (fs.existsSync(vendorBin)) {
         if (!isWindows) {
           try { fs.chmodSync(vendorBin, 0o755); } catch { /* ignore */ }
         }
-        console.log(`[@bytetrade/hass-cli] installed vendor binary at ${vendorBin}`);
+        console.log(`[@olares/hass-cli] installed vendor binary at ${vendorBin}`);
         return;
       }
       tried.push(`${url} (extracted but ${binName} missing)`);
@@ -118,14 +118,14 @@ async function main() {
     }
   }
 
-  console.error('[@bytetrade/hass-cli] failed to download vendor binary. Tried:');
+  console.error('[@olares/hass-cli] failed to download vendor binary. Tried:');
   for (const t of tried) console.error(`  - ${t}`);
-  console.error('[@bytetrade/hass-cli] Set HASS_CLI_DOWNLOAD_MIRROR to a reachable mirror and retry,');
-  console.error('[@bytetrade/hass-cli] or set HASS_CLI_SKIP_DOWNLOAD=1 to install the JS shim without a binary.');
+  console.error('[@olares/hass-cli] Set HASS_CLI_DOWNLOAD_MIRROR to a reachable mirror and retry,');
+  console.error('[@olares/hass-cli] or set HASS_CLI_SKIP_DOWNLOAD=1 to install the JS shim without a binary.');
   process.exit(1);
 }
 
 main().catch((err) => {
-  console.error('[@bytetrade/hass-cli] postinstall failed:', err);
+  console.error('[@olares/hass-cli] postinstall failed:', err);
   process.exit(1);
 });

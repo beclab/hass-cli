@@ -1,7 +1,7 @@
 {
-  "name": "@bytetrade/hass-cli",
+  "name": "@olares/hass-cli",
   "version": "0.0.0-placeholder",
-  "description": "Home Assistant CLI (hass-cli) Node wrapper. Run via `npx @bytetrade/hass-cli@latest <verb>` or install globally with `npm install -g @bytetrade/hass-cli`.",
+  "description": "Home Assistant CLI (hass-cli) Node wrapper. Run via `npx @olares/hass-cli@latest <verb>` or install globally with `npm install -g @olares/hass-cli`.",
   "bin": {
     "hass-cli": "./bin/hass-cli.js"
   },
@@ -34,12 +34,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bytetrade/hass-cli.git",
+    "url": "git+https://github.com/beclab/hass-cli.git",
     "directory": "npm"
   },
-  "homepage": "https://github.com/bytetrade/hass-cli/tree/main",
+  "homepage": "https://github.com/beclab/hass-cli/tree/main",
   "bugs": {
-    "url": "https://github.com/bytetrade/hass-cli/issues"
+    "url": "https://github.com/beclab/hass-cli/issues"
   },
   "keywords": [
     "home-assistant",

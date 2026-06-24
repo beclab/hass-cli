@@ -4,8 +4,8 @@
 const { execFileSync, execFile } = require('node:child_process');
 const p = require('@clack/prompts');
 
-const PKG = '@bytetrade/hass-cli';
-const SKILLS_REPO = 'bytetrade/hass-cli';
+const PKG = '@olares/hass-cli';
+const SKILLS_REPO = 'beclab/hass-cli';
 const isWindows = process.platform === 'win32';
 
 const msg = {

@@ -62,7 +62,7 @@ $env:HASS_SERVER = $base
 $env:HASS_TOKEN = $tok.access_token
 
 Write-Host "4) building hass-cli..."
-go build -ldflags "-X main.version=0.1.0" -o hass-cli.exe .
+go build -ldflags "-X main.version=0.0.1" -o hass-cli.exe .
 
 Write-Host "`n=== P0: core ==="
 Check "ping"                "API running."   @("ping", "-o", "json")

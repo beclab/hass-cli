@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Install hass-cli by downloading the matching release tarball from GitHub.
 #
-#   curl -fsSL https://raw.githubusercontent.com/bytetrade/hass-cli/main/scripts/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/beclab/hass-cli/main/scripts/install.sh | sh
 #
 # Environment:
 #   HASS_CLI_VERSION   release version to install (default: latest)
@@ -9,7 +9,7 @@
 #   HASS_CLI_DOWNLOAD_MIRROR  base URL to fetch the tarball from instead of GitHub
 set -eu
 
-REPO="bytetrade/hass-cli"
+REPO="beclab/hass-cli"
 GH_BASE="https://github.com/${REPO}/releases/download"
 
 err() { printf '%s\n' "hass-cli install: $*" >&2; }

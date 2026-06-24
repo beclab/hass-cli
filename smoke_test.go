@@ -17,6 +17,12 @@ import (
 // mockHA stands up a minimal Home Assistant API (REST + WebSocket) so CLI
 // commands can be smoke-tested end to end without a real instance.
 func mockHA(t *testing.T) *httptest.Server {
+	return mockHAWith(t, []string{"api", "frontend", "hassio"})
+}
+
+// mockHAWith is mockHA with a configurable component list, so tests can model
+// a non-Supervisor (no "hassio") install.
+func mockHAWith(t *testing.T, components []string) *httptest.Server {
 	t.Helper()
 	mux := http.NewServeMux()
 
@@ -28,7 +34,7 @@ func mockHA(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{
 				"version":       "test",
 				"location_name": "Mock",
-				"components":    []string{"api", "frontend", "hassio"},
+				"components":    components,
 			})
 		case r.URL.Path == "/api/config/config_entries/flow_handlers":
 			writeJSON(w, []string{"random", "group", "template"})
@@ -232,6 +238,8 @@ func TestSmoke(t *testing.T) {
 		{"supervisor-info", []string{"-o", "json", "supervisor", "info"}, ""},
 		{"skill-list-desc", []string{"skill", "list"}, "Home Assistant"},
 		{"state-list-table", []string{"state", "list"}, "ENTITY"},
+		{"state-list-yaml", []string{"-o", "yaml", "state", "list"}, "entity_id: light.kitchen"},
+		{"state-list-ndjson", []string{"-o", "ndjson", "state", "list"}, "{\"entity_id\":\"sun.sun\""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -254,6 +262,9 @@ func TestValidation(t *testing.T) {
 		{"integration", "update", "x"},
 		{"registry", "area", "create"},
 		{"system", "analytics", "set"},
+		{"lovelace", "dashboard", "create"},
+		{"assist", "pipeline", "create"},
+		{"statistics", "period"},
 	}
 	for _, args := range cases {
 		t.Run(strings.Join(args, "-"), func(t *testing.T) {
@@ -263,6 +274,30 @@ func TestValidation(t *testing.T) {
 			root.SetErr(io.Discard)
 			if err := root.Execute(); err == nil {
 				t.Fatalf("expected error for %v, got nil", args)
+			}
+		})
+	}
+}
+
+// TestNoSupervisor checks that add-on/supervisor commands fail fast with a clear
+// message on a non-Supervised install (no "hassio" component).
+func TestNoSupervisor(t *testing.T) {
+	srv := mockHAWith(t, []string{"api", "frontend"})
+	t.Setenv("HASS_SERVER", srv.URL)
+	t.Setenv("HASS_TOKEN", "test-token")
+
+	for _, args := range [][]string{{"addon", "list"}, {"supervisor", "info"}} {
+		t.Run(strings.Join(args, "-"), func(t *testing.T) {
+			root := cmd.NewRootCommand()
+			root.SetArgs(args)
+			root.SetOut(io.Discard)
+			root.SetErr(io.Discard)
+			err := root.Execute()
+			if err == nil {
+				t.Fatalf("expected error for %v on non-Supervisor install", args)
+			}
+			if !strings.Contains(err.Error(), "no Supervisor") {
+				t.Fatalf("want 'no Supervisor' message, got: %v", err)
 			}
 		})
 	}

@@ -112,6 +112,10 @@ func mockHA(t *testing.T) *httptest.Server {
 				result = []map[string]any{{"id": "guest_mode", "name": "Guest Mode"}}
 			case "input_boolean/create":
 				result = map[string]any{"id": "guest_mode", "name": msg["name"]}
+			case "config_entries/get":
+				result = []map[string]any{{"entry_id": "abc123", "domain": "sun", "title": "Sun", "state": "loaded"}}
+			case "backup/info":
+				result = map[string]any{"state": "idle", "backups": []any{}}
 			case "repairs/list_issues":
 				result = map[string]any{"issues": []any{}}
 			case "supervisor/api":
@@ -175,6 +179,8 @@ func TestSmoke(t *testing.T) {
 		{"raw-ws", []string{"-o", "json", "raw", "ws", "get_config"}, "version"},
 		{"registry-area", []string{"-o", "json", "registry", "area", "list"}, "Kitchen"},
 		{"helper-list", []string{"-o", "json", "helper", "input_boolean", "list"}, "Guest Mode"},
+		{"integration-list", []string{"-o", "json", "integration", "list"}, "entry_id"},
+		{"backup-list", []string{"-o", "json", "backup", "list"}, "idle"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
 		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},

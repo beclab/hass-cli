@@ -2,12 +2,34 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/bytetrade/hass-cli/internal/cmdutil"
+	"github.com/spf13/cobra"
 )
+
+var errAgentIDsRequired = errors.New(`--data is required (e.g. {"agent_ids":["backup.local"]}), or use --auto`)
+
+// wsRun returns a cobra RunE that issues a single WS command whose payload is
+// built from the positional args, then renders the result. It keeps the many
+// read-only WS subcommands declarative.
+func wsRun(f *cmdutil.Factory, payload func(args []string) map[string]any) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		c, err := f.Client()
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+		raw, err := c.WS(cmd.Context(), payload(args))
+		if err != nil {
+			return err
+		}
+		return renderRaw(f, raw)
+	}
+}
 
 // parseDataObject decodes a --data flag into a JSON object. As a convenience
 // (and to sidestep shell quoting of inline JSON, especially on PowerShell), a

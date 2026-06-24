@@ -90,6 +90,25 @@ Write-Host "`n=== P1: notifications + assist ==="
 Check "persistent_notification" "[]" @("service", "call", "persistent_notification.create", "--data", (J "pn.json" '{"title":"hc","message":"itest","notification_id":"hc1"}'), "-o", "json")
 Check "conversation/process" "response" @("raw", "ws", "conversation/process", "--data", (J "cv.json" '{"text":"what time is it"}'), "-o", "json")
 
+Write-Host "`n=== P2: integrations + backups ==="
+Check "integration list"  "entry_id"     @("integration", "list", "-o", "json")
+Check "backup agents"     "backup.local" @("backup", "agents", "-o", "json")
+Check "backup list"       "idle"         @("backup", "list", "-o", "json")
+# reload the sun config entry (always present on a fresh instance)
+$sunEntry = ((& .\hass-cli.exe integration list -o json | ConvertFrom-Json) | Where-Object { $_.domain -eq "sun" }).entry_id
+Check "integration get"    "loaded"      @("integration", "get", $sunEntry, "-o", "json")
+Check "integration reload" "require_restart" @("integration", "reload", $sunEntry, "-o", "json")
+# full backup lifecycle: create -> wait -> appears -> delete
+Check "backup create"     "backup_job_id" @("backup", "create", "--data", (J "bk.json" '{"agent_ids":["backup.local"],"name":"itest"}'), "-o", "json")
+for ($i = 0; $i -lt 15; $i++) {
+    $bl = & .\hass-cli.exe backup list -o json | ConvertFrom-Json
+    if ($bl.backups.Count -ge 1) { break }
+    Start-Sleep 2
+}
+$bid = (& .\hass-cli.exe backup list -o json | ConvertFrom-Json).backups[0].backup_id
+Check "backup appeared"   "itest"        @("backup", "get", $bid, "-o", "json")
+Check "backup delete"     "agent_errors" @("backup", "delete", $bid, "-o", "json")
+
 # cleanup created helpers
 foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {
     & .\hass-cli.exe helper $h[0] delete $h[1] 2>&1 | Out-Null

@@ -57,6 +57,8 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Voice / conversation / TTS engines | `hass-cli raw ws conversation/* ...` | ha-assist |
 | Areas/devices/entities | `hass-cli registry <kind> ...` | ha-registry |
 | Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
+| Integrations / config entries / discovery | `hass-cli integration ...` | ha-integrations |
+| Backups (create/restore/delete) | `hass-cli backup ...` | ha-backup |
 | System health / repairs / logs | `hass-cli raw ...` / `system` | ha-system |
 | Add-ons (via Core proxy) | `hass-cli raw ws supervisor/api ...` | ha-supervisor |
 

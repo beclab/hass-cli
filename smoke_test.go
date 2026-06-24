@@ -26,6 +26,8 @@ func mockHA(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"message": "API running."})
 		case r.URL.Path == "/api/config":
 			writeJSON(w, map[string]any{"version": "test", "location_name": "Mock"})
+		case r.URL.Path == "/api/config/config_entries/flow_handlers":
+			writeJSON(w, []string{"random", "group", "template"})
 		case r.URL.Path == "/api/services":
 			writeJSON(w, []map[string]any{{
 				"domain": "light",
@@ -180,6 +182,7 @@ func TestSmoke(t *testing.T) {
 		{"registry-area", []string{"-o", "json", "registry", "area", "list"}, "Kitchen"},
 		{"helper-list", []string{"-o", "json", "helper", "input_boolean", "list"}, "Guest Mode"},
 		{"integration-list", []string{"-o", "json", "integration", "list"}, "entry_id"},
+		{"flow-handlers", []string{"-o", "json", "integration", "flow", "handlers"}, "random"},
 		{"backup-list", []string{"-o", "json", "backup", "list"}, "idle"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
 		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},

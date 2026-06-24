@@ -109,6 +109,17 @@ $bid = (& .\hass-cli.exe backup list -o json | ConvertFrom-Json).backups[0].back
 Check "backup appeared"   "itest"        @("backup", "get", $bid, "-o", "json")
 Check "backup delete"     "agent_errors" @("backup", "delete", $bid, "-o", "json")
 
+Write-Host "`n=== P2: config flow (add an integration end to end) ==="
+Check "flow handlers"  "random"   @("integration", "flow", "handlers", "--type", "helper", "-o", "json")
+Check "flow progress"  "["        @("integration", "flow", "progress", "-o", "json")
+# Drive the 'random' helper flow: start (menu) -> choose sensor -> submit name -> create_entry
+$fid = (& .\hass-cli.exe integration flow start random -o json | ConvertFrom-Json).flow_id
+& .\hass-cli.exe integration flow step $fid --data (J "fl1.json" '{"next_step_id":"sensor"}') -o json | Out-Null
+Check "flow create_entry" "create_entry" @("integration", "flow", "step", $fid, "--data", (J "fl2.json" '{"name":"itest random"}'), "-o", "json")
+$randEntry = ((& .\hass-cli.exe integration list --domain random -o json | ConvertFrom-Json) | Select-Object -First 1).entry_id
+Check "flow entry created" "loaded" @("integration", "get", $randEntry, "-o", "json")
+& .\hass-cli.exe integration delete $randEntry -o json | Out-Null
+
 # cleanup created helpers
 foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {
     & .\hass-cli.exe helper $h[0] delete $h[1] 2>&1 | Out-Null

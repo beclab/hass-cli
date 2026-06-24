@@ -57,16 +57,48 @@ Per-integration *options* (the options flow) are interactive multi-step and are
 not exposed as a single command; drive them with `raw ws` against
 `config_entries/options/flow` if needed.
 
-## Discovery & in-progress flows
+## Add an integration (config flow)
 
-Discovered devices surface as in-progress config flows:
+Adding an integration is a schema-driven, multi-step flow. Drive it with
+`integration flow`:
 
 ```bash
-hass-cli raw ws config_entries/flow/progress -o json     # awaiting-setup discoveries
-hass-cli raw api GET 'config/config_entries/flow_handlers' -o json   # what can be set up
-hass-cli raw ws usb/scan -o json                         # trigger a USB rescan
+hass-cli integration flow handlers --type helper    # what can be set up
+hass-cli integration flow start <domain>            # begin; returns the first step
+hass-cli integration flow step <flow_id> --data '{...}'   # submit each step's input
+hass-cli integration flow abort <flow_id>           # cancel
 ```
 
-Starting/finishing a config flow is an interactive, schema-driven sequence
-(`config/config_entries/flow` POST then step submissions); use `raw api`/`raw ws`
-for that. For everyday work, prefer reload/enable/disable above.
+Each step response has a `type`:
+
+- `form` — fill `data_schema` fields, submit with `step`. `last_step` hints it's
+  the final one. `errors` is populated on validation failure (re-submit).
+- `menu` — submit `{"next_step_id":"<one of menu_options>"}`.
+- `create_entry` — done; `result.entry_id` is the new config entry.
+- `abort` — flow ended early; `reason` says why.
+- `external_step` — needs a browser (e.g. OAuth); not CLI-friendly.
+
+Worked example (the `random` helper integration):
+
+```bash
+ID=$(hass-cli integration flow start random -o json | jq -r .flow_id)
+hass-cli integration flow step $ID --data '{"next_step_id":"sensor"}'   # menu -> form
+hass-cli integration flow step $ID --data '{"name":"My Random"}'         # -> create_entry
+```
+
+> OAuth / hub integrations that need a browser redirect (`external_step`) can't
+> be completed from the CLI. Helper and local integrations work fully.
+
+## Discovery & in-progress flows
+
+Discovered devices (bluetooth/zeroconf/dhcp/ssdp/usb/...) surface as in-progress
+config flows:
+
+```bash
+hass-cli integration flow progress      # discovered + awaiting-input flows
+hass-cli integration flow ignore <flow_id>   # stop suggesting a discovery
+hass-cli raw ws usb/scan                 # trigger a USB rescan
+```
+
+To set up a discovered device, take its `flow_id` from `flow progress` and drive
+it with `integration flow step` (it already has a started flow).

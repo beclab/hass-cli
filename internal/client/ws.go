@@ -161,13 +161,14 @@ func (w *wsConn) call(ctx context.Context, payload map[string]any) (json.RawMess
 	w.pending[id] = ch
 	w.mu.Unlock()
 
-	payload["id"] = id
-	if err := w.write(ctx, payload); err != nil {
+	if err := w.write(ctx, cloneWithID(payload, id)); err != nil {
+		w.dropPending(id)
 		return nil, err
 	}
 
 	select {
 	case <-ctx.Done():
+		w.dropPending(id)
 		return nil, ctx.Err()
 	case msg, ok := <-ch:
 		if !ok {
@@ -199,19 +200,21 @@ func (w *wsConn) subscribe(ctx context.Context, payload map[string]any, handler 
 	w.subs[id] = eventCh
 	w.mu.Unlock()
 
-	payload["id"] = id
-	if err := w.write(ctx, payload); err != nil {
+	if err := w.write(ctx, cloneWithID(payload, id)); err != nil {
+		w.dropSub(id)
 		return err
 	}
 
 	select {
 	case <-ctx.Done():
+		w.dropSub(id)
 		return ctx.Err()
 	case msg, ok := <-resultCh:
 		if !ok {
 			return fmt.Errorf("connection closed: %w", w.closeErr)
 		}
 		if msg.Error != nil {
+			w.dropSub(id)
 			return msg.Error
 		}
 	}
@@ -240,6 +243,36 @@ func (w *wsConn) unsubscribe(id int64) {
 	ctx := context.Background()
 	uid := atomic.AddInt64(&w.nextID, 1)
 	_ = w.write(ctx, map[string]any{"id": uid, "type": "unsubscribe_events", "subscription": id})
+}
+
+// cloneWithID returns a shallow copy of payload with the request id set, so the
+// caller's map is never mutated (callers may reuse or inspect it afterwards).
+func cloneWithID(payload map[string]any, id int64) map[string]any {
+	frame := make(map[string]any, len(payload)+1)
+	for k, v := range payload {
+		frame[k] = v
+	}
+	frame["id"] = id
+	return frame
+}
+
+func (w *wsConn) dropPending(id int64) {
+	w.mu.Lock()
+	delete(w.pending, id)
+	w.mu.Unlock()
+}
+
+func (w *wsConn) dropSub(id int64) {
+	w.mu.Lock()
+	delete(w.pending, id)
+	delete(w.subs, id)
+	w.mu.Unlock()
+}
+
+func (w *wsConn) isClosed() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.closed
 }
 
 func (w *wsConn) close() {

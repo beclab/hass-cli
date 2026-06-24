@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/bytetrade/hass-cli/cmd"
+	"github.com/bytetrade/hass-cli/internal/client"
 )
 
 // version is the default build version; override at build time via
@@ -16,7 +17,7 @@ func main() {
 	cmd.SetVersion(version)
 	root := cmd.NewRootCommand()
 	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		fmt.Fprintln(os.Stderr, "Error:", client.FriendlyMessage(err))
 		os.Exit(1)
 	}
 }

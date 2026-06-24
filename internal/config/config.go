@@ -15,8 +15,11 @@ import (
 
 // Config holds the resolved settings used to reach a Home Assistant instance.
 type Config struct {
-	Server          string `yaml:"server"`
-	Token           string `yaml:"token"`
+	Server string `yaml:"server"`
+	Token  string `yaml:"token"`
+	// SupervisorToken is reserved for direct Supervisor access when Core is down;
+	// it is parsed from config/env but not yet wired. The Supervisor proxy path
+	// (addon/supervisor commands) uses Token via Core's supervisor/api.
 	SupervisorToken string `yaml:"supervisor_token"`
 	Insecure        bool   `yaml:"insecure"`
 	TimeoutSeconds  int    `yaml:"timeout"`
@@ -52,6 +55,9 @@ func Resolve(profileName, server, token string, insecure bool, timeout int) (*Co
 	if v := os.Getenv("HASS_SUPERVISOR_TOKEN"); v != "" {
 		cfg.SupervisorToken = v
 	}
+	if v := os.Getenv("HASS_INSECURE"); v == "1" || strings.EqualFold(v, "true") {
+		cfg.Insecure = true
+	}
 
 	if server != "" {
 		cfg.Server = server
@@ -77,8 +83,15 @@ func (c *Config) Validate() error {
 	if c.Token == "" {
 		return errors.New("no token configured: set --token, HASS_TOKEN, or a profile")
 	}
-	if _, err := url.Parse(c.Server); err != nil {
+	u, err := url.Parse(c.Server)
+	if err != nil {
 		return fmt.Errorf("invalid server URL %q: %w", c.Server, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("server URL %q must start with http:// or https://", c.Server)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("server URL %q is missing a host", c.Server)
 	}
 	return nil
 }
@@ -117,7 +130,7 @@ func configDir() (string, error) {
 func loadProfile(name string) (*Config, string, error) {
 	dir, err := configDir()
 	if err != nil {
-		return nil, "", nil
+		return nil, "", fmt.Errorf("locate config dir: %w", err)
 	}
 	path := filepath.Join(dir, "config.yaml")
 	raw, err := os.ReadFile(path)

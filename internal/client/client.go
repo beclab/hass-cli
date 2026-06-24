@@ -21,9 +21,8 @@ type Client struct {
 	rest    *restClient
 	timeout time.Duration
 
-	wsOnce sync.Once
-	ws     *wsConn
-	wsErr  error
+	wsMu sync.Mutex
+	ws   *wsConn
 
 	supervisorOnce sync.Once
 	hasSupervisor  bool
@@ -55,18 +54,30 @@ func (c *Client) withTimeout(ctx context.Context) (context.Context, context.Canc
 
 // Close releases the WebSocket connection if one was opened.
 func (c *Client) Close() {
+	c.wsMu.Lock()
+	defer c.wsMu.Unlock()
 	if c.ws != nil {
 		c.ws.close()
 	}
 }
 
+// wsConnect returns a live WS connection, dialing lazily. If a prior connection
+// failed or was closed, a subsequent call re-dials rather than staying poisoned
+// (there is no background auto-reconnect; a dropped stream still surfaces).
 func (c *Client) wsConnect(ctx context.Context) (*wsConn, error) {
-	c.wsOnce.Do(func() {
-		dialCtx, cancel := c.withTimeout(ctx)
-		defer cancel()
-		c.ws, c.wsErr = dialWS(dialCtx, c.cfg.WebSocketURL(), c.cfg.Token)
-	})
-	return c.ws, c.wsErr
+	c.wsMu.Lock()
+	defer c.wsMu.Unlock()
+	if c.ws != nil && !c.ws.isClosed() {
+		return c.ws, nil
+	}
+	dialCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+	ws, err := dialWS(dialCtx, c.cfg.WebSocketURL(), c.cfg.Token)
+	if err != nil {
+		return nil, err
+	}
+	c.ws = ws
+	return c.ws, nil
 }
 
 // --- generic passthrough -------------------------------------------------

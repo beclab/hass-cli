@@ -108,6 +108,10 @@ func mockHA(t *testing.T) *httptest.Server {
 				result = map[string]any{"version": "test"}
 			case "config/area_registry/list":
 				result = []map[string]any{{"area_id": "kitchen", "name": "Kitchen"}}
+			case "input_boolean/list":
+				result = []map[string]any{{"id": "guest_mode", "name": "Guest Mode"}}
+			case "input_boolean/create":
+				result = map[string]any{"id": "guest_mode", "name": msg["name"]}
 			case "repairs/list_issues":
 				result = map[string]any{"issues": []any{}}
 			case "supervisor/api":
@@ -170,6 +174,7 @@ func TestSmoke(t *testing.T) {
 		{"raw-api", []string{"-o", "json", "raw", "api", "GET", "states/sun.sun"}, "sun.sun"},
 		{"raw-ws", []string{"-o", "json", "raw", "ws", "get_config"}, "version"},
 		{"registry-area", []string{"-o", "json", "registry", "area", "list"}, "Kitchen"},
+		{"helper-list", []string{"-o", "json", "helper", "input_boolean", "list"}, "Guest Mode"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
 		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},

@@ -52,6 +52,9 @@ hass-cli registry area list                # area/device/entity/floor/label
 hass-cli registry area create --data '{"name":"Garage"}'
 hass-cli registry area update garage --data '{"name":"Garage Bay"}'  # id is positional
 hass-cli registry area delete garage
+hass-cli helper input_boolean list         # input_*/counter/timer/schedule
+hass-cli helper input_boolean create --data '{"name":"Guest Mode"}'
+hass-cli helper counter delete visits
 hass-cli workflow automation list
 hass-cli workflow automation save my_auto --file my_auto.yaml
 hass-cli system health                     # integration system-health report

@@ -4,3 +4,6 @@
 *.out
 dist/
 .env
+.hatoken
+*.tmp.json
+*.tmp.yaml

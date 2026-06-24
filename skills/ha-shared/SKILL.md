@@ -45,6 +45,13 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Connectivity check | `hass-cli ping` | ha-shared |
 | Read entity states | `hass-cli state list/get` | ha-states |
 | Call a service | `hass-cli service call <domain.service>` | ha-services |
+| Lights / switches / fans | `hass-cli service call light.* ...` | ha-lighting |
+| Climate / thermostat / humidity | `hass-cli service call climate.* ...` | ha-climate |
+| Covers / locks / valves | `hass-cli service call cover.*/lock.* ...` | ha-openings |
+| Media players | `hass-cli service call media_player.* ...` | ha-media |
+| Notifications / TTS | `hass-cli service call notify.*/tts.* ...` | ha-notify |
+| People / zones / presence | `hass-cli state list/get person.* ...` | ha-presence |
+| Helpers (input_*, counter, timer) | `hass-cli helper <type> ...` | ha-helpers |
 | Areas/devices/entities | `hass-cli registry <kind> ...` | ha-registry |
 | Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
 | System health / repairs / logs | `hass-cli raw ...` / `system` | ha-system |

@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to build (e.g. v0.0.1)
+        type: string
+        required: true
+      publish-npm:
+        description: Publish @olares/hass-cli to npm
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add local tag for GoReleaser (dispatch only)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: git tag "${{ steps.ver.outputs.version }}"
+        continue-on-error: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert binary version was injected
+        run: |
+          set -euo pipefail
+          binary=$(find ./output -type f -name 'hass-cli' -path '*linux_amd64*' | head -n1)
+          if [ -z "$binary" ]; then
+            echo "::error::could not locate built linux_amd64 hass-cli binary under ./output"
+            find ./output -maxdepth 2 -type f | sed 's/^/  /'
+            exit 1
+          fi
+          expected="${{ steps.ver.outputs.version }}"
+          expected_stripped="${expected#v}"
+          actual=$("$binary" --version 2>&1)
+          if ! echo "$actual" | grep -qF "$expected_stripped"; then
+            echo "::error::binary version output '$actual' does not contain expected '$expected_stripped'"
+            exit 1
+          fi
+          echo "binary version OK: $actual"
+
+  publish-npm:
+    needs: [goreleaser]
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish-npm }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Sync npm package.json version to release
+        working-directory: npm
+        run: |
+          ver="${{ needs.goreleaser.outputs.version }}"
+          npm version "${ver#v}" --no-git-tag-version --allow-same-version
+
+      - name: Publish @olares/hass-cli
+        working-directory: npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_OLARES_PUBLISH_TOKEN }}
+        run: npm publish --access public

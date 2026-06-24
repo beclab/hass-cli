@@ -33,6 +33,22 @@ func wsRun(f *cmdutil.Factory, payload func(args []string) map[string]any) func(
 	}
 }
 
+// wsCall issues a single WS command with an already-built payload and renders
+// the result. Use it when the payload needs imperative construction or
+// validation that wsRun's declarative form can't express.
+func wsCall(f *cmdutil.Factory, cmd *cobra.Command, payload map[string]any) error {
+	c, err := f.Client()
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	raw, err := c.WS(cmd.Context(), payload)
+	if err != nil {
+		return err
+	}
+	return renderRaw(f, raw)
+}
+
 // parseDataObject decodes a --data flag into a JSON object. As a convenience
 // (and to sidestep shell quoting of inline JSON, especially on PowerShell), a
 // value of the form "@path" reads the JSON from a file. An empty value yields

@@ -126,6 +126,17 @@ func mockHA(t *testing.T) *httptest.Server {
 				result = map[string]any{"preferences": map[string]any{"base": false}}
 			case "labs/list":
 				result = map[string]any{"features": []any{map[string]any{"domain": "frontend", "preview_feature": "winter_mode", "enabled": false}}}
+			case "lovelace/dashboards/list":
+				result = []map[string]any{{"id": "ops_room", "url_path": "ops-room", "title": "Ops Room", "mode": "storage"}}
+			case "lovelace/resources":
+				result = []any{}
+			case "assist_pipeline/pipeline/list":
+				result = map[string]any{
+					"pipelines":          []map[string]any{{"id": "p1", "name": "Home Assistant", "language": "en"}},
+					"preferred_pipeline": "p1",
+				}
+			case "assist_pipeline/language/list":
+				result = map[string]any{"languages": []string{"en", "de"}}
 			case "supervisor/api":
 				result = map[string]any{"addons": []any{}}
 			default:
@@ -193,6 +204,9 @@ func TestSmoke(t *testing.T) {
 		{"system-hardware", []string{"-o", "json", "system", "hardware"}, "hardware"},
 		{"system-analytics", []string{"-o", "json", "system", "analytics"}, "preferences"},
 		{"system-labs", []string{"-o", "json", "system", "labs"}, "winter_mode"},
+		{"lovelace-dashboards", []string{"-o", "json", "lovelace", "dashboard", "list"}, "ops-room"},
+		{"assist-pipelines", []string{"-o", "json", "assist", "pipeline", "list"}, "preferred_pipeline"},
+		{"assist-languages", []string{"-o", "json", "assist", "languages"}, "languages"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
 		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},

@@ -36,7 +36,7 @@ function Check([string]$label, [string]$expect, [string[]]$cliArgs) {
 }
 
 Write-Host "1) starting HA container..."
-docker rm -f $Name 2>$null | Out-Null
+$ErrorActionPreference = "SilentlyContinue"; docker rm -f $Name 2>$null | Out-Null; $ErrorActionPreference = "Stop"
 docker run -d --name $Name -p "${Port}:8123" ghcr.io/home-assistant/home-assistant:stable | Out-Null
 
 Write-Host "2) waiting for onboarding endpoint..."
@@ -125,6 +125,23 @@ Check "system hardware"   "hardware"    @("system", "hardware", "-o", "json")
 Check "system labs"       "preview_feature" @("system", "labs", "-o", "json")
 Check "system analytics"  "preferences" @("system", "analytics", "-o", "json")
 Check "analytics set"     "statistics"  @("system", "analytics", "set", "--data", (J "an.json" '{"base":true,"statistics":true}'), "-o", "json")
+
+Write-Host "`n=== P3: Lovelace dashboards (create -> save config -> get -> delete) ==="
+Check "dashboard list (empty)" "[" @("lovelace", "dashboard", "list", "-o", "json")
+$dash = & .\hass-cli.exe lovelace dashboard create --data (J "dash.json" '{"url_path":"hc-itest","title":"HC Itest"}') -o json | ConvertFrom-Json
+Check "dashboard created" "hc-itest" @("lovelace", "dashboard", "list", "-o", "json")
+$viewYaml = Join-Path $tmp "view.yaml"
+Set-Content -Path $viewYaml -Value "views:`n  - title: Home`n    cards:`n      - type: markdown`n        content: itest" -Encoding ascii
+& .\hass-cli.exe lovelace config save --dashboard hc-itest --file $viewYaml -o json | Out-Null
+Check "config get roundtrip" "itest" @("lovelace", "config", "get", "--dashboard", "hc-itest", "-o", "yaml")
+Check "resource list" "[" @("lovelace", "resource", "list", "-o", "json")
+& .\hass-cli.exe lovelace dashboard delete $dash.id -o json | Out-Null
+
+Write-Host "`n=== P3: Assist pipelines ==="
+Check "pipeline list" "preferred_pipeline" @("assist", "pipeline", "list", "-o", "json")
+Check "pipeline get preferred" "conversation_engine" @("assist", "pipeline", "get", "-o", "json")
+Check "assist languages" "languages" @("assist", "languages", "-o", "json")
+Check "assist devices" "[" @("assist", "devices", "-o", "json")
 
 # cleanup created helpers
 foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {

@@ -103,3 +103,8 @@ hass-cli raw ws usb/scan                 # trigger a USB rescan
 
 To set up a discovered device, take its `flow_id` from `flow progress` and drive
 it with `integration flow step` (it already has a started flow).
+
+> For radio gateways (ZHA / Z-Wave JS / Matter / Thread), this skill covers the
+> integration's lifecycle. Protocol-layer operations — pairing a Zigbee device,
+> joining a Z-Wave node, network backups, Matter commissioning, Thread datasets
+> — are in [`../ha-gateway/SKILL.md`](../ha-gateway/SKILL.md).

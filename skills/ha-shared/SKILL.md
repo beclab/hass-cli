@@ -60,6 +60,7 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Areas/devices/entities/floors/labels/categories | `hass-cli registry <kind> ...` | ha-registry |
 | Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
 | Integrations / config entries / discovery | `hass-cli integration ...` | ha-integrations |
+| Zigbee/Z-Wave/Matter/Thread gateways & networks | `hass-cli service call zha.* ...` / `hass-cli raw ws zha\|zwave_js\|matter\|thread/...` | ha-gateway |
 | Backups (create/restore/delete) | `hass-cli backup ...` | ha-backup |
 | System health / repairs / logs / hardware / analytics / labs | `hass-cli system ...` | ha-system |
 | Add-ons / Supervisor (HA OS only) | `hass-cli addon ...` / `hass-cli supervisor ...` | ha-supervisor |

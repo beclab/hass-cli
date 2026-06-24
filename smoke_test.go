@@ -26,6 +26,22 @@ func mockHA(t *testing.T) *httptest.Server {
 			writeJSON(w, map[string]any{"message": "API running."})
 		case r.URL.Path == "/api/config":
 			writeJSON(w, map[string]any{"version": "test", "location_name": "Mock"})
+		case r.URL.Path == "/api/services":
+			writeJSON(w, []map[string]any{{
+				"domain": "light",
+				"services": map[string]any{
+					"turn_on": map[string]any{
+						"name":        "Turn on",
+						"description": "Turn a light on",
+						"fields": map[string]any{
+							"brightness_pct": map[string]any{"description": "Brightness %"},
+						},
+					},
+				},
+			}})
+		case r.URL.Path == "/api/error_log":
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte("no errors\n"))
 		case r.URL.Path == "/api/states":
 			writeJSON(w, []map[string]any{
 				{"entity_id": "sun.sun", "state": "above_horizon"},
@@ -69,6 +85,10 @@ func mockHA(t *testing.T) *httptest.Server {
 				result = map[string]any{"version": "test"}
 			case "config/area_registry/list":
 				result = []map[string]any{{"area_id": "kitchen", "name": "Kitchen"}}
+			case "system_health/info":
+				result = map[string]any{"homeassistant": map[string]any{"version": "test"}}
+			case "repairs/list_issues":
+				result = map[string]any{"issues": []any{}}
 			case "supervisor/api":
 				result = map[string]any{"addons": []any{}}
 			default:
@@ -130,6 +150,10 @@ func TestSmoke(t *testing.T) {
 		{"raw-ws", []string{"-o", "json", "raw", "ws", "get_config"}, "version"},
 		{"registry-area", []string{"-o", "json", "registry", "area", "list"}, "Kitchen"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
+		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},
+		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},
+		{"system-repairs", []string{"-o", "json", "system", "repairs"}, "issues"},
+		{"system-errorlog", []string{"system", "errorlog"}, "no errors"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

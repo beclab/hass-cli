@@ -50,6 +50,7 @@ func NewRootCommand() *cobra.Command {
 		newTemplateCmd(f),
 		newRegistryCmds(f),
 		newWorkflowCmds(f),
+		newSystemCmd(f),
 		newRawCmds(f),
 		newSkillCmd(),
 	)

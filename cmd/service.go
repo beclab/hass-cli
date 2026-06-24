@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/bytetrade/hass-cli/internal/catalog"
 	"github.com/bytetrade/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
 )
@@ -71,6 +72,36 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object")
 	callCmd.Flags().StringArrayVar(&arguments, "arguments", nil, "key=value pairs (repeatable)")
 	cmd.AddCommand(callCmd)
+
+	cmd.AddCommand(&cobra.Command{
+		Use:   "describe <domain.service>",
+		Short: "Show a service's fields from the live service catalog",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			domain, service, ok := strings.Cut(args[0], ".")
+			if !ok {
+				return fmt.Errorf("service must be <domain>.<service>, got %q", args[0])
+			}
+			c, err := f.Client()
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			raw, err := c.Services(cmd.Context())
+			if err != nil {
+				return err
+			}
+			cat, err := catalog.Parse(raw)
+			if err != nil {
+				return err
+			}
+			svc, ok := cat.Lookup(domain, service)
+			if !ok {
+				return fmt.Errorf("service %q not found", args[0])
+			}
+			return renderValue(f, svc)
+		},
+	})
 
 	return cmd
 }

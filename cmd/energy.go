@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/bytetrade/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // newEnergyCmd reads and writes the Energy dashboard preferences (the energy
@@ -46,24 +48,35 @@ func newEnergyCmd(f *cmdutil.Factory) *cobra.Command {
 		}),
 	})
 
-	var saveData string
+	var saveData, saveFile string
 	saveCmd := &cobra.Command{
 		Use:   "save",
-		Short: "Save energy preferences (--data with energy_sources/device_consumption)",
+		Short: "Save energy preferences (--data JSON or --file YAML/JSON)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body, err := parseDataObject(saveData)
-			if err != nil {
-				return err
-			}
-			if body == nil {
-				return fmt.Errorf(`--data is required (e.g. {"energy_sources":[...],"device_consumption":[...]})`)
+			var body map[string]any
+			switch {
+			case saveFile != "":
+				raw, err := os.ReadFile(saveFile)
+				if err != nil {
+					return err
+				}
+				if err := yaml.Unmarshal(raw, &body); err != nil {
+					return fmt.Errorf("parse %s: %w", saveFile, err)
+				}
+			default:
+				var err error
+				body, err = requireData(saveData)
+				if err != nil {
+					return err
+				}
 			}
 			body["type"] = "energy/save_prefs"
 			return wsCall(f, cmd, body)
 		},
 	}
 	saveCmd.Flags().StringVar(&saveData, "data", "", "Preferences as JSON (or @file.json)")
+	saveCmd.Flags().StringVar(&saveFile, "file", "", "Preferences file (YAML or JSON)")
 	prefs.AddCommand(saveCmd)
 	cmd.AddCommand(prefs)
 

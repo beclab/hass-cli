@@ -34,9 +34,18 @@ func newLovelaceDashboardCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List dashboards",
 		Args:  cobra.NoArgs,
-		RunE: wsRun(f, func([]string) map[string]any {
-			return map[string]any{"type": "lovelace/dashboards/list"}
-		}),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := f.Client()
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			raw, err := c.WS(cmd.Context(), map[string]any{"type": "lovelace/dashboards/list"})
+			if err != nil {
+				return err
+			}
+			return renderRawCols(f, raw, colsDashboard)
+		},
 	})
 
 	var createData string
@@ -68,12 +77,9 @@ func newLovelaceDashboardCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Update a dashboard's mutable fields",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body, err := parseDataObject(updateData)
+			body, err := requireData(updateData)
 			if err != nil {
 				return err
-			}
-			if body == nil {
-				body = map[string]any{}
 			}
 			body["type"] = "lovelace/dashboards/update"
 			body["dashboard_id"] = args[0]
@@ -201,12 +207,9 @@ func newLovelaceResourceCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Update a resource",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body, err := parseDataObject(updateData)
+			body, err := requireData(updateData)
 			if err != nil {
 				return err
-			}
-			if body == nil {
-				body = map[string]any{}
 			}
 			body["type"] = "lovelace/resources/update"
 			body["resource_id"] = args[0]

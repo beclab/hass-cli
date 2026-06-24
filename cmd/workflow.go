@@ -53,7 +53,7 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 				}
 				return true
 			})
-			return renderValue(f, filtered)
+			return renderValueCols(f, filtered, colsState)
 		},
 	})
 

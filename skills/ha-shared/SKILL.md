@@ -62,7 +62,7 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Integrations / config entries / discovery | `hass-cli integration ...` | ha-integrations |
 | Backups (create/restore/delete) | `hass-cli backup ...` | ha-backup |
 | System health / repairs / logs / hardware / analytics / labs | `hass-cli system ...` | ha-system |
-| Add-ons (via Core proxy) | `hass-cli raw ws supervisor/api ...` | ha-supervisor |
+| Add-ons / Supervisor (HA OS only) | `hass-cli addon ...` / `hass-cli supervisor ...` | ha-supervisor |
 
 ## Raw passthrough (full coverage)
 

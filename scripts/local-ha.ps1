@@ -22,8 +22,13 @@ function J([string]$file, [string]$json) {
 }
 
 # Check runs hass-cli with the given args and asserts the output contains $expect.
+# Some commands intentionally exit non-zero (e.g. the no-Supervisor guard), so we
+# relax ErrorActionPreference around the call and assert only on output text.
 function Check([string]$label, [string]$expect, [string[]]$cliArgs) {
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     $out = (& .\hass-cli.exe @cliArgs 2>&1 | Out-String)
+    $ErrorActionPreference = $prev
     if ($out -match [regex]::Escape($expect)) {
         Write-Host ("  PASS  {0}" -f $label) -ForegroundColor Green
         $script:pass++
@@ -57,7 +62,7 @@ $env:HASS_SERVER = $base
 $env:HASS_TOKEN = $tok.access_token
 
 Write-Host "4) building hass-cli..."
-go build -o hass-cli.exe .
+go build -ldflags "-X main.version=0.1.0" -o hass-cli.exe .
 
 Write-Host "`n=== P0: core ==="
 Check "ping"                "API running."   @("ping", "-o", "json")
@@ -153,6 +158,26 @@ Check "energy prefs get" "energy_sources" @("energy", "prefs", "get", "-o", "jso
 Check "energy info" "cost_sensors" @("energy", "info", "-o", "json")
 Check "statistics info" "recording" @("statistics", "info", "-o", "json")
 Check "statistics list" "[" @("statistics", "list", "-o", "json")
+
+Write-Host "`n=== P4: polish (supervisor guard / default columns / validation / --file) ==="
+# Container has no Supervisor -> addon commands must fail fast with a friendly message
+Check "addon no-supervisor" "no Supervisor" @("addon", "list")
+# default table columns: state list (table mode) shows the ENTITY header
+Check "state list default cols" "ENTITY" @("state", "list")
+# energy prefs save via --file (YAML)
+$epYaml = Join-Path $tmp "ep.yaml"
+Set-Content -Path $epYaml -Value "energy_sources: []`ndevice_consumption: []" -Encoding ascii
+Check "energy prefs save --file" "energy_sources" @("energy", "prefs", "save", "--file", $epYaml, "-o", "json")
+# write-command validation: empty --data update is rejected locally
+$ErrorActionPreference = "Continue"
+$vout = (& .\hass-cli.exe registry area create 2>&1 | Out-String)
+$ErrorActionPreference = "Stop"
+if ($vout -match "data is required") {
+    Write-Host "  PASS  empty create rejected" -ForegroundColor Green; $script:pass++
+} else {
+    Write-Host "  FAIL  empty create rejected" -ForegroundColor Red
+    Write-Host ("        got: {0}" -f ($vout.Trim() -replace "\s+", " ")); $script:fail++
+}
 
 # cleanup created helpers
 foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {

@@ -37,7 +37,16 @@ func newStatisticsCmd(f *cmdutil.Factory) *cobra.Command {
 			if statType != "" {
 				body["statistic_type"] = statType
 			}
-			return wsCall(f, cmd, body)
+			c, err := f.Client()
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			raw, err := c.WS(cmd.Context(), body)
+			if err != nil {
+				return err
+			}
+			return renderRawCols(f, raw, colsStatistics)
 		},
 	}
 	listCmd.Flags().StringVar(&statType, "type", "", "Filter by statistic type: mean|sum")

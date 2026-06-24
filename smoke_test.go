@@ -25,7 +25,11 @@ func mockHA(t *testing.T) *httptest.Server {
 		case r.URL.Path == "/api/" || r.URL.Path == "/api":
 			writeJSON(w, map[string]any{"message": "API running."})
 		case r.URL.Path == "/api/config":
-			writeJSON(w, map[string]any{"version": "test", "location_name": "Mock"})
+			writeJSON(w, map[string]any{
+				"version":       "test",
+				"location_name": "Mock",
+				"components":    []string{"api", "frontend", "hassio"},
+			})
 		case r.URL.Path == "/api/config/config_entries/flow_handlers":
 			writeJSON(w, []string{"random", "group", "template"})
 		case r.URL.Path == "/api/services":
@@ -224,12 +228,41 @@ func TestSmoke(t *testing.T) {
 		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},
 		{"system-repairs", []string{"-o", "json", "system", "repairs"}, "issues"},
 		{"system-errorlog", []string{"system", "errorlog"}, "no errors"},
+		{"addon-list", []string{"-o", "json", "addon", "list"}, "addons"},
+		{"supervisor-info", []string{"-o", "json", "supervisor", "info"}, ""},
+		{"skill-list-desc", []string{"skill", "list"}, "Home Assistant"},
+		{"state-list-table", []string{"state", "list"}, "ENTITY"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			out := run(t, tc.args...)
 			if tc.want != "" && !strings.Contains(out, tc.want) {
 				t.Fatalf("output missing %q\ngot: %s", tc.want, out)
+			}
+		})
+	}
+}
+
+// TestValidation checks that write commands reject an empty --data locally.
+func TestValidation(t *testing.T) {
+	srv := mockHA(t)
+	t.Setenv("HASS_SERVER", srv.URL)
+	t.Setenv("HASS_TOKEN", "test-token")
+
+	cases := [][]string{
+		{"helper", "input_boolean", "update", "x"},
+		{"integration", "update", "x"},
+		{"registry", "area", "create"},
+		{"system", "analytics", "set"},
+	}
+	for _, args := range cases {
+		t.Run(strings.Join(args, "-"), func(t *testing.T) {
+			root := cmd.NewRootCommand()
+			root.SetArgs(args)
+			root.SetOut(io.Discard)
+			root.SetErr(io.Discard)
+			if err := root.Execute(); err == nil {
+				t.Fatalf("expected error for %v, got nil", args)
 			}
 		})
 	}

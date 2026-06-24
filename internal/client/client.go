@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,21 +17,40 @@ import (
 // Client exposes Home Assistant capabilities over a REST + WS facade. The WS
 // connection is established lazily on first use.
 type Client struct {
-	cfg  *config.Config
-	rest *restClient
+	cfg     *config.Config
+	rest    *restClient
+	timeout time.Duration
 
 	wsOnce sync.Once
 	ws     *wsConn
 	wsErr  error
+
+	supervisorOnce sync.Once
+	hasSupervisor  bool
+	supervisorErr  error
 }
 
 // New builds a client from resolved config. It does not open any connection.
 func New(cfg *config.Config) *Client {
 	timeout := time.Duration(cfg.TimeoutSeconds) * time.Second
 	return &Client{
-		cfg:  cfg,
-		rest: newRESTClient(cfg.RESTBaseURL(), cfg.Token, cfg.Insecure, timeout),
+		cfg:     cfg,
+		timeout: timeout,
+		rest:    newRESTClient(cfg.RESTBaseURL(), cfg.Token, cfg.Insecure, timeout),
 	}
+}
+
+// withTimeout derives a context bounded by the configured timeout, but only
+// when the caller's context has no deadline of its own. Streaming callers
+// (subscriptions) must not go through here.
+func (c *Client) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if c.timeout <= 0 {
+		return ctx, func() {}
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, c.timeout)
 }
 
 // Close releases the WebSocket connection if one was opened.
@@ -42,7 +62,9 @@ func (c *Client) Close() {
 
 func (c *Client) wsConnect(ctx context.Context) (*wsConn, error) {
 	c.wsOnce.Do(func() {
-		c.ws, c.wsErr = dialWS(ctx, c.cfg.WebSocketURL(), c.cfg.Token)
+		dialCtx, cancel := c.withTimeout(ctx)
+		defer cancel()
+		c.ws, c.wsErr = dialWS(dialCtx, c.cfg.WebSocketURL(), c.cfg.Token)
 	})
 	return c.ws, c.wsErr
 }
@@ -54,13 +76,16 @@ func (c *Client) REST(ctx context.Context, method, path string, body any) (json.
 	return c.rest.do(ctx, method, path, body)
 }
 
-// WS issues a raw WebSocket command and returns its result payload.
+// WS issues a raw WebSocket command and returns its result payload. The call is
+// bounded by the configured timeout unless the caller already set a deadline.
 func (c *Client) WS(ctx context.Context, payload map[string]any) (json.RawMessage, error) {
 	conn, err := c.wsConnect(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return conn.call(ctx, payload)
+	callCtx, cancel := c.withTimeout(ctx)
+	defer cancel()
+	return conn.call(callCtx, payload)
 }
 
 // Subscribe streams events for a WS subscription command until ctx is done.
@@ -164,7 +189,11 @@ func (c *Client) SystemHealthInfo(ctx context.Context) (json.RawMessage, error) 
 	domains := map[string]map[string]any{}
 	errFinished := errors.New("finished")
 
-	subCtx, cancel := context.WithCancel(ctx)
+	// system_health/info is semantically one-shot (it terminates on "finish"),
+	// so bound it by the configured timeout rather than streaming forever.
+	tCtx, tCancel := c.withTimeout(ctx)
+	defer tCancel()
+	subCtx, cancel := context.WithCancel(tCtx)
 	defer cancel()
 
 	subErr := conn.subscribe(subCtx, map[string]any{"type": "system_health/info"}, func(ev json.RawMessage) error {
@@ -221,8 +250,36 @@ func (c *Client) SystemHealthInfo(ctx context.Context) (json.RawMessage, error) 
 
 // --- supervisor (via Core proxy) -----------------------------------------
 
+// HasSupervisor reports whether the instance is a Supervised/HA OS install,
+// detected the same way the frontend does: the "hassio" component being loaded.
+// The result is cached for the client's lifetime.
+func (c *Client) HasSupervisor(ctx context.Context) (bool, error) {
+	c.supervisorOnce.Do(func() {
+		raw, err := c.rest.do(ctx, "GET", "config", nil)
+		if err != nil {
+			c.supervisorErr = err
+			return
+		}
+		var cfg struct {
+			Components []string `json:"components"`
+		}
+		if err := json.Unmarshal(raw, &cfg); err != nil {
+			c.supervisorErr = err
+			return
+		}
+		for _, comp := range cfg.Components {
+			if comp == "hassio" {
+				c.hasSupervisor = true
+				break
+			}
+		}
+	})
+	return c.hasSupervisor, c.supervisorErr
+}
+
 // SupervisorAPI proxies a Supervisor endpoint through Core's supervisor/api WS
-// command, so a regular admin token reaches /addons, /store, etc.
+// command, so a regular admin token reaches /addons, /store, etc. An
+// authorization failure is rewrapped with an actionable hint.
 func (c *Client) SupervisorAPI(ctx context.Context, method, endpoint string, data map[string]any) (json.RawMessage, error) {
 	payload := map[string]any{
 		"type":     "supervisor/api",
@@ -232,5 +289,23 @@ func (c *Client) SupervisorAPI(ctx context.Context, method, endpoint string, dat
 	if data != nil {
 		payload["data"] = data
 	}
-	return c.WS(ctx, payload)
+	raw, err := c.WS(ctx, payload)
+	if err != nil && isAuthError(err) {
+		return nil, fmt.Errorf("token lacks the admin privileges required for Supervisor access; use an admin long-lived token: %w", err)
+	}
+	return raw, err
+}
+
+// isAuthError matches WS errors that indicate the token is not allowed to run a
+// command (unauthorized / admin-required), so callers can hint at a token swap.
+func isAuthError(err error) bool {
+	var wsErr *wsError
+	if errors.As(err, &wsErr) {
+		if wsErr.Code == "unauthorized" {
+			return true
+		}
+		msg := strings.ToLower(wsErr.Message)
+		return strings.Contains(msg, "unauthorized") || strings.Contains(msg, "admin")
+	}
+	return false
 }

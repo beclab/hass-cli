@@ -52,7 +52,16 @@ func newCategoryRegistryCmd(f *cmdutil.Factory) *cobra.Command {
 				if op == "update" || op == "delete" {
 					payload["category_id"] = args[0]
 				}
-				fields, err := parseDataObject(dataJSON)
+				var fields map[string]any
+				var err error
+				switch op {
+				case "create":
+					fields, err = requireDataField(dataJSON, "name")
+				case "update":
+					fields, err = requireData(dataJSON)
+				default:
+					fields, err = parseDataObject(dataJSON)
+				}
 				if err != nil {
 					return err
 				}
@@ -90,7 +99,7 @@ func newRegistryCmd(f *cmdutil.Factory, name string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderRaw(f, raw)
+			return renderRawCols(f, raw, fmt.Sprintf("ID=%s_id,NAME=name", name))
 		},
 	})
 
@@ -119,7 +128,16 @@ func newRegistryOpCmd(f *cmdutil.Factory, name, op string) *cobra.Command {
 			if op != "create" {
 				payload[idKey] = args[0]
 			}
-			fields, err := parseDataObject(dataJSON)
+			var fields map[string]any
+			var err error
+			switch op {
+			case "create":
+				fields, err = requireDataField(dataJSON, "name")
+			case "update":
+				fields, err = requireData(dataJSON)
+			default:
+				fields, err = parseDataObject(dataJSON)
+			}
 			if err != nil {
 				return err
 			}

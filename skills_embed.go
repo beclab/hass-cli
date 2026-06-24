@@ -9,9 +9,9 @@ import (
 	"github.com/bytetrade/hass-cli/cmd"
 )
 
-// skillsEmbedFS embeds each skill's agent-readable SKILL.md so the binary
-// serves skill content matching its version. References are added to the
-// pattern once a skill ships a references/ directory.
+// skillsEmbedFS embeds each skill's agent-readable SKILL.md so the binary can
+// serve skill content offline. References are added to the pattern once a skill
+// ships a references/ directory.
 //
 //go:embed skills/*/SKILL.md
 var skillsEmbedFS embed.FS

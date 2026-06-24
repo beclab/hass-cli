@@ -96,12 +96,9 @@ func newAssistPipelineCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Update a pipeline",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body, err := parseDataObject(updateData)
+			body, err := requireData(updateData)
 			if err != nil {
 				return err
-			}
-			if body == nil {
-				body = map[string]any{}
 			}
 			body["type"] = "assist_pipeline/pipeline/update"
 			body["pipeline_id"] = args[0]

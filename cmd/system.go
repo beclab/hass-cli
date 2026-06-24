@@ -157,7 +157,7 @@ func newAnalyticsCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Set analytics preferences (--data '{\"base\":true,...}')",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			prefs, err := parseDataObject(prefData)
+			prefs, err := requireData(prefData)
 			if err != nil {
 				return err
 			}

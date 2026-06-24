@@ -6,8 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// version is overridden at build time via -ldflags.
-var version = "dev"
+// version is overridden by main via SetVersion (which may inject a build-time
+// value); this default keeps `--version` meaningful for `go run`/tests.
+var version = "0.1.0"
 
 // SetVersion lets main inject the build version.
 func SetVersion(v string) {
@@ -57,6 +58,8 @@ func NewRootCommand() *cobra.Command {
 		newAssistCmd(f),
 		newEnergyCmd(f),
 		newStatisticsCmd(f),
+		newAddonCmd(f),
+		newSupervisorCmd(f),
 		newSystemCmd(f),
 		newRawCmds(f),
 		newSkillCmd(),

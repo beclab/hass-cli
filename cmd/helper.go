@@ -57,7 +57,7 @@ func newHelperTypeCmd(f *cmdutil.Factory, typ string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderRaw(f, raw)
+			return renderRawCols(f, raw, colsHelper)
 		},
 	})
 
@@ -99,7 +99,7 @@ func newHelperTypeCmd(f *cmdutil.Factory, typ string) *cobra.Command {
 		Short: fmt.Sprintf("Update a %s helper by id (--data JSON)", typ),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fields, err := parseDataObject(updateData)
+			fields, err := requireData(updateData)
 			if err != nil {
 				return err
 			}

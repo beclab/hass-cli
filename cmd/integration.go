@@ -36,7 +36,7 @@ func newIntegrationCmd(f *cmdutil.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderRaw(f, raw)
+			return renderRawCols(f, raw, colsIntegration)
 		},
 	}
 	listCmd.Flags().StringVar(&domain, "domain", "", "Filter by integration domain")
@@ -105,7 +105,7 @@ func newIntegrationCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Update a config entry (--data: title/pref_disable_new_entities/pref_disable_polling)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fields, err := parseDataObject(updateData)
+			fields, err := requireData(updateData)
 			if err != nil {
 				return err
 			}

@@ -24,7 +24,7 @@ func newStateCmd(f *cmdutil.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderRaw(f, raw)
+			return renderRawCols(f, raw, colsState)
 		},
 	})
 
@@ -73,7 +73,7 @@ func newStateCmd(f *cmdutil.Factory) *cobra.Command {
 		},
 	}
 	setCmd.Flags().StringVar(&stateValue, "state", "", "New state value (required)")
-	setCmd.Flags().StringVar(&attrsJSON, "attributes", "", "Attributes as JSON object")
+	setCmd.Flags().StringVar(&attrsJSON, "attributes", "", "Attributes as a JSON object (or @file.json)")
 	_ = setCmd.MarkFlagRequired("state")
 	cmd.AddCommand(setCmd)
 

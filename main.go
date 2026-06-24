@@ -8,8 +8,9 @@ import (
 	"github.com/bytetrade/hass-cli/cmd"
 )
 
-// version is set at build time via -ldflags "-X main.version=...".
-var version = "dev"
+// version is the default build version; override at build time via
+// -ldflags "-X main.version=...".
+var version = "0.1.0"
 
 func main() {
 	cmd.SetVersion(version)

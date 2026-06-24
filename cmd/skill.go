@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -25,7 +27,7 @@ func newSkillCmd() *cobra.Command {
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list",
-		Short: "List bundled skills",
+		Short: "List bundled skills with their descriptions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if embeddedSkills == nil {
 				return fmt.Errorf("no skills embedded in this build")
@@ -41,10 +43,16 @@ func newSkillCmd() *cobra.Command {
 				}
 			}
 			sort.Strings(names)
+
+			tw := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 4, 2, ' ', 0)
 			for _, n := range names {
-				fmt.Fprintln(cmd.OutOrStdout(), n)
+				desc := ""
+				if data, err := fs.ReadFile(embeddedSkills, n+"/SKILL.md"); err == nil {
+					desc = truncate(frontMatterField(string(data), "description"), 100)
+				}
+				fmt.Fprintf(tw, "%s\t%s\n", n, desc)
 			}
-			return nil
+			return tw.Flush()
 		},
 	})
 
@@ -66,4 +74,41 @@ func newSkillCmd() *cobra.Command {
 	})
 
 	return cmd
+}
+
+// frontMatterField extracts a scalar field from a SKILL.md YAML front-matter
+// block (between the leading --- fences) without pulling in a YAML dependency.
+// It handles single/double quoted and bare values on a single line.
+func frontMatterField(content, field string) string {
+	content = strings.TrimLeft(content, "\ufeff \t\r\n")
+	if !strings.HasPrefix(content, "---") {
+		return ""
+	}
+	rest := content[len("---"):]
+	end := strings.Index(rest, "\n---")
+	if end >= 0 {
+		rest = rest[:end]
+	}
+	prefix := field + ":"
+	for _, line := range strings.Split(rest, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, prefix) {
+			continue
+		}
+		val := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+		val = strings.TrimSuffix(strings.TrimPrefix(val, `"`), `"`)
+		val = strings.TrimSuffix(strings.TrimPrefix(val, "'"), "'")
+		return val
+	}
+	return ""
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	if max <= 3 {
+		return s[:max]
+	}
+	return s[:max-3] + "..."
 }

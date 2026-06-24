@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/signal"
 
@@ -22,11 +21,9 @@ func newEventCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Fire a custom event",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data := map[string]any{}
-			if dataJSON != "" {
-				if err := json.Unmarshal([]byte(dataJSON), &data); err != nil {
-					return fmt.Errorf("invalid --data JSON: %w", err)
-				}
+			data, err := parseDataObject(dataJSON)
+			if err != nil {
+				return err
 			}
 			c, err := f.Client()
 			if err != nil {
@@ -40,7 +37,7 @@ func newEventCmd(f *cmdutil.Factory) *cobra.Command {
 			return renderRaw(f, raw)
 		},
 	}
-	fireCmd.Flags().StringVar(&dataJSON, "data", "", "Event data as a JSON object")
+	fireCmd.Flags().StringVar(&dataJSON, "data", "", "Event data as a JSON object (or @file.json)")
 	cmd.AddCommand(fireCmd)
 
 	watchCmd := &cobra.Command{

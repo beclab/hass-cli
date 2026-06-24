@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/bytetrade/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
 )
@@ -61,11 +58,11 @@ func newStateCmd(f *cmdutil.Factory) *cobra.Command {
 			}
 			defer c.Close()
 			body := map[string]any{"state": stateValue}
-			if attrsJSON != "" {
-				var attrs map[string]any
-				if err := json.Unmarshal([]byte(attrsJSON), &attrs); err != nil {
-					return fmt.Errorf("invalid --attributes JSON: %w", err)
-				}
+			attrs, err := parseDataObject(attrsJSON)
+			if err != nil {
+				return err
+			}
+			if attrs != nil {
 				body["attributes"] = attrs
 			}
 			raw, err := c.SetState(cmd.Context(), args[0], body)

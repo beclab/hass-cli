@@ -1,8 +1,8 @@
-# local-ha.ps1 - spin up a throwaway Home Assistant and smoke-test hass-cli.
+# local-ha.ps1 - spin up a throwaway Home Assistant and run P0+P1 integration tests.
 #
 # Usage:
-#   ./scripts/local-ha.ps1            # start, smoke test, tear down
-#   ./scripts/local-ha.ps1 -KeepRunning   # leave the container up for manual testing
+#   ./scripts/local-ha.ps1                 # start, test, tear down
+#   ./scripts/local-ha.ps1 -KeepRunning    # leave the container up afterwards
 param(
     [int]$Port = 8123,
     [string]$Name = "ha-test",
@@ -10,6 +10,30 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $base = "http://localhost:$Port"
+$script:pass = 0
+$script:fail = 0
+$tmp = Join-Path $env:TEMP "hasscli-itest"
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+
+function J([string]$file, [string]$json) {
+    $p = Join-Path $tmp $file
+    Set-Content -Path $p -Value $json -Encoding ascii
+    return "@$p"
+}
+
+# Check runs hass-cli with the given args and asserts the output contains $expect.
+function Check([string]$label, [string]$expect, [string[]]$cliArgs) {
+    $out = (& .\hass-cli.exe @cliArgs 2>&1 | Out-String)
+    if ($out -match [regex]::Escape($expect)) {
+        Write-Host ("  PASS  {0}" -f $label) -ForegroundColor Green
+        $script:pass++
+    } else {
+        Write-Host ("  FAIL  {0}" -f $label) -ForegroundColor Red
+        Write-Host ("        expected to contain: {0}" -f $expect)
+        Write-Host ("        got: {0}" -f ($out.Trim() -replace "\s+", " ").Substring(0, [Math]::Min(200, $out.Trim().Length)))
+        $script:fail++
+    }
+}
 
 Write-Host "1) starting HA container..."
 docker rm -f $Name 2>$null | Out-Null
@@ -19,44 +43,64 @@ Write-Host "2) waiting for onboarding endpoint..."
 $ready = $false
 for ($i = 0; $i -lt 90; $i++) {
     try { Invoke-RestMethod "$base/api/onboarding" -TimeoutSec 3 | Out-Null; $ready = $true; break }
-    catch { Start-Sleep 3 }
+    catch { Start-Sleep 2 }
 }
 if (-not $ready) { throw "HA did not become ready in time" }
 
-Write-Host "3) creating owner user -> auth_code..."
+Write-Host "3) onboarding -> access token..."
 $clientId = "$base/"
 $body = @{ name = "Test"; username = "admin"; password = "admin1234"; client_id = $clientId; language = "en" } | ConvertTo-Json
 $auth = Invoke-RestMethod "$base/api/onboarding/users" -Method Post -ContentType "application/json" -Body $body
-
-Write-Host "4) exchanging auth_code -> access_token..."
 $form = "grant_type=authorization_code&code=$($auth.auth_code)&client_id=$([uri]::EscapeDataString($clientId))"
 $tok = Invoke-RestMethod "$base/auth/token" -Method Post -ContentType "application/x-www-form-urlencoded" -Body $form
-
 $env:HASS_SERVER = $base
 $env:HASS_TOKEN = $tok.access_token
-Write-Host "HASS_SERVER=$env:HASS_SERVER  (token expires in $($tok.expires_in)s)"
 
-Write-Host "5) building + smoke testing hass-cli..."
+Write-Host "4) building hass-cli..."
 go build -o hass-cli.exe .
-$cmds = @(
-    @("ping", "-o", "json", "ping"),
-    @("config", "-o", "json", "config", "get"),
-    @("state-list", "-o", "json", "state", "list"),
-    @("service-list", "-o", "json", "service", "list"),
-    @("service-describe", "-o", "json", "service", "describe", "homeassistant.turn_on"),
-    @("registry-area", "-o", "json", "registry", "area", "list"),
-    @("raw-ws", "-o", "json", "raw", "ws", "get_config"),
-    @("system-health", "-o", "json", "system", "health"),
-    @("system-repairs", "-o", "json", "system", "repairs")
-)
-foreach ($c in $cmds) {
-    $label = $c[0]
-    $args = $c[1..($c.Length - 1)]
-    Write-Host "--- $label ---"
-    & .\hass-cli.exe @args
+
+Write-Host "`n=== P0: core ==="
+Check "ping"                "API running."   @("ping", "-o", "json")
+Check "config get"          "version"        @("config", "get", "-o", "json")
+Check "state list"          "entity_id"      @("state", "list", "-o", "json")
+Check "service list"        "domain"         @("service", "list", "-o", "json")
+Check "service describe"    "brightness_pct" @("service", "describe", "light.turn_on", "-o", "json")
+Check "registry area list"  "area_id"        @("registry", "area", "list", "-o", "json")
+Check "raw ws get_config"   "version"        @("raw", "ws", "get_config", "-o", "json")
+Check "system health"       "homeassistant"  @("system", "health", "-o", "json")
+Check "system repairs"      "issues"         @("system", "repairs", "-o", "json")
+
+Write-Host "`n=== P1: registry mutate (id positional + @file) ==="
+Check "area create"  "hc_area"      @("registry", "area", "create", "--data", (J "area.json" '{"name":"HC Area"}'), "-o", "json")
+Check "area update"  "HC Renamed"   @("registry", "area", "update", "hc_area", "--data", (J "area2.json" '{"name":"HC Renamed"}'), "-o", "json")
+Check "area delete"  "success"      @("registry", "area", "delete", "hc_area", "-o", "json")
+
+Write-Host "`n=== P1: helpers CRUD + operate via service call ==="
+Check "input_boolean create" "hc_flag"  @("helper", "input_boolean", "create", "--data", (J "ib.json" '{"name":"HC Flag"}'), "-o", "json")
+Check "input_boolean list"   "HC Flag"  @("helper", "input_boolean", "list", "-o", "json")
+Check "input_boolean turn_on" "on"      @("service", "call", "input_boolean.turn_on", "--arguments", "entity_id=input_boolean.hc_flag", "-o", "json")
+Check "counter create"       "hc_count" @("helper", "counter", "create", "--data", (J "ct.json" '{"name":"HC Count","initial":0,"step":1}'), "-o", "json")
+Check "counter increment"    "1"        @("service", "call", "counter.increment", "--arguments", "entity_id=counter.hc_count", "-o", "json")
+Check "input_number create"  "hc_level" @("helper", "input_number", "create", "--data", (J "num.json" '{"name":"HC Level","min":0,"max":100,"step":5}'), "-o", "json")
+Check "input_number set"     "35"       @("service", "call", "input_number.set_value", "--data", (J "setnum.json" '{"entity_id":"input_number.hc_level","value":35}'), "-o", "json")
+Check "input_select create"  "hc_mode"  @("helper", "input_select", "create", "--data", (J "sel.json" '{"name":"HC Mode","options":["home","away"]}'), "-o", "json")
+Check "input_select option"  "away"     @("service", "call", "input_select.select_option", "--data", (J "selopt.json" '{"entity_id":"input_select.hc_mode","option":"away"}'), "-o", "json")
+
+Write-Host "`n=== P1: notifications + assist ==="
+Check "persistent_notification" "[]" @("service", "call", "persistent_notification.create", "--data", (J "pn.json" '{"title":"hc","message":"itest","notification_id":"hc1"}'), "-o", "json")
+Check "conversation/process" "response" @("raw", "ws", "conversation/process", "--data", (J "cv.json" '{"text":"what time is it"}'), "-o", "json")
+
+# cleanup created helpers
+foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {
+    & .\hass-cli.exe helper $h[0] delete $h[1] 2>&1 | Out-Null
 }
+
+Write-Host "`n=== summary ==="
+Write-Host ("  {0} passed, {1} failed" -f $script:pass, $script:fail) -ForegroundColor $(if ($script:fail -eq 0) { "Green" } else { "Red" })
+Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 
 if (-not $KeepRunning) {
-    Write-Host "6) tearing down..."
+    Write-Host "tearing down..."
     docker rm -f $Name | Out-Null
 }
+if ($script:fail -gt 0) { exit 1 }

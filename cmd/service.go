@@ -44,11 +44,12 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if !ok {
 				return fmt.Errorf("service must be <domain>.<service>, got %q", args[0])
 			}
-			data := map[string]any{}
-			if dataJSON != "" {
-				if err := json.Unmarshal([]byte(dataJSON), &data); err != nil {
-					return fmt.Errorf("invalid --data JSON: %w", err)
-				}
+			data, err := parseDataObject(dataJSON)
+			if err != nil {
+				return err
+			}
+			if data == nil {
+				data = map[string]any{}
 			}
 			for _, kv := range arguments {
 				k, v, ok := strings.Cut(kv, "=")
@@ -69,7 +70,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			return renderRaw(f, raw)
 		},
 	}
-	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object")
+	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object (or @file.json)")
 	callCmd.Flags().StringArrayVar(&arguments, "arguments", nil, "key=value pairs (repeatable)")
 	cmd.AddCommand(callCmd)
 

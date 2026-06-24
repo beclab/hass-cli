@@ -23,7 +23,7 @@ func parseDataObject(data string) (map[string]any, error) {
 	}
 	var fields map[string]any
 	if err := json.Unmarshal(raw, &fields); err != nil {
-		return nil, fmt.Errorf("invalid --data JSON: %w", err)
+		return nil, fmt.Errorf("invalid JSON (expected an object): %w", err)
 	}
 	return fields, nil
 }

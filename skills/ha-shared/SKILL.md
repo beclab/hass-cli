@@ -52,6 +52,9 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Notifications / TTS | `hass-cli service call notify.*/tts.* ...` | ha-notify |
 | People / zones / presence | `hass-cli state list/get person.* ...` | ha-presence |
 | Helpers (input_*, counter, timer) | `hass-cli helper <type> ...` | ha-helpers |
+| Sensors/number/select/vacuum/alarm/todo/calendar | `hass-cli state get` / `service call` | ha-entities |
+| Energy dashboard / consumption | `hass-cli raw ws energy/* ...` | ha-energy |
+| Voice / conversation / TTS engines | `hass-cli raw ws conversation/* ...` | ha-assist |
 | Areas/devices/entities | `hass-cli registry <kind> ...` | ha-registry |
 | Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
 | System health / repairs / logs | `hass-cli raw ...` / `system` | ha-system |

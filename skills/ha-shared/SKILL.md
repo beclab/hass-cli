@@ -59,7 +59,7 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
 | Integrations / config entries / discovery | `hass-cli integration ...` | ha-integrations |
 | Backups (create/restore/delete) | `hass-cli backup ...` | ha-backup |
-| System health / repairs / logs | `hass-cli raw ...` / `system` | ha-system |
+| System health / repairs / logs / hardware / analytics / labs | `hass-cli system ...` | ha-system |
 | Add-ons (via Core proxy) | `hass-cli raw ws supervisor/api ...` | ha-supervisor |
 
 ## Raw passthrough (full coverage)

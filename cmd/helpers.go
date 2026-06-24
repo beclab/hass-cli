@@ -13,6 +13,8 @@ import (
 
 var errAgentIDsRequired = errors.New(`--data is required (e.g. {"agent_ids":["backup.local"]}), or use --auto`)
 
+var errLabsUpdateData = errors.New(`--data is required (e.g. {"domain":"...","preview_feature":"...","enabled":true})`)
+
 // wsRun returns a cobra RunE that issues a single WS command whose payload is
 // built from the positional args, then renders the result. It keeps the many
 // read-only WS subcommands declarative.

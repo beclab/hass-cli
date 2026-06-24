@@ -120,6 +120,12 @@ func mockHA(t *testing.T) *httptest.Server {
 				result = map[string]any{"state": "idle", "backups": []any{}}
 			case "repairs/list_issues":
 				result = map[string]any{"issues": []any{}}
+			case "hardware/info":
+				result = map[string]any{"hardware": []any{}}
+			case "analytics":
+				result = map[string]any{"preferences": map[string]any{"base": false}}
+			case "labs/list":
+				result = map[string]any{"features": []any{map[string]any{"domain": "frontend", "preview_feature": "winter_mode", "enabled": false}}}
 			case "supervisor/api":
 				result = map[string]any{"addons": []any{}}
 			default:
@@ -184,6 +190,9 @@ func TestSmoke(t *testing.T) {
 		{"integration-list", []string{"-o", "json", "integration", "list"}, "entry_id"},
 		{"flow-handlers", []string{"-o", "json", "integration", "flow", "handlers"}, "random"},
 		{"backup-list", []string{"-o", "json", "backup", "list"}, "idle"},
+		{"system-hardware", []string{"-o", "json", "system", "hardware"}, "hardware"},
+		{"system-analytics", []string{"-o", "json", "system", "analytics"}, "preferences"},
+		{"system-labs", []string{"-o", "json", "system", "labs"}, "winter_mode"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
 		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},

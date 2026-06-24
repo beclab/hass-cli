@@ -120,6 +120,12 @@ $randEntry = ((& .\hass-cli.exe integration list --domain random -o json | Conve
 Check "flow entry created" "loaded" @("integration", "get", $randEntry, "-o", "json")
 & .\hass-cli.exe integration delete $randEntry -o json | Out-Null
 
+Write-Host "`n=== P2: system maintenance (hardware / analytics / labs) ==="
+Check "system hardware"   "hardware"    @("system", "hardware", "-o", "json")
+Check "system labs"       "preview_feature" @("system", "labs", "-o", "json")
+Check "system analytics"  "preferences" @("system", "analytics", "-o", "json")
+Check "analytics set"     "statistics"  @("system", "analytics", "set", "--data", (J "an.json" '{"base":true,"statistics":true}'), "-o", "json")
+
 # cleanup created helpers
 foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {
     & .\hass-cli.exe helper $h[0] delete $h[1] 2>&1 | Out-Null

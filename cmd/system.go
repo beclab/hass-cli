@@ -124,5 +124,102 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 	historyCmd.Flags().StringVar(&histEntities, "entities", "", "Comma-separated entity_ids")
 	cmd.AddCommand(historyCmd)
 
+	cmd.AddCommand(&cobra.Command{
+		Use:   "hardware",
+		Short: "Board / dongle hardware info (hardware integration)",
+		Args:  cobra.NoArgs,
+		RunE: wsRun(f, func([]string) map[string]any {
+			return map[string]any{"type": "hardware/info"}
+		}),
+	})
+
+	cmd.AddCommand(newAnalyticsCmd(f))
+	cmd.AddCommand(newLabsCmd(f))
+
+	return cmd
+}
+
+// newAnalyticsCmd reads and updates the instance's analytics opt-in
+// preferences (base/diagnostics/usage/statistics).
+func newAnalyticsCmd(f *cmdutil.Factory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "analytics",
+		Short: "Show analytics opt-in preferences",
+		Args:  cobra.NoArgs,
+		RunE: wsRun(f, func([]string) map[string]any {
+			return map[string]any{"type": "analytics"}
+		}),
+	}
+
+	var prefData string
+	setCmd := &cobra.Command{
+		Use:   "set",
+		Short: "Set analytics preferences (--data '{\"base\":true,...}')",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			prefs, err := parseDataObject(prefData)
+			if err != nil {
+				return err
+			}
+			c, err := f.Client()
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			raw, err := c.WS(cmd.Context(), map[string]any{
+				"type": "analytics/preferences", "preferences": prefs,
+			})
+			if err != nil {
+				return err
+			}
+			return renderRaw(f, raw)
+		},
+	}
+	setCmd.Flags().StringVar(&prefData, "data", "", "Preferences JSON object (or @file.json)")
+	cmd.AddCommand(setCmd)
+
+	return cmd
+}
+
+// newLabsCmd lists experimental preview features and toggles them.
+func newLabsCmd(f *cmdutil.Factory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "labs",
+		Short: "List experimental preview (labs) features",
+		Args:  cobra.NoArgs,
+		RunE: wsRun(f, func([]string) map[string]any {
+			return map[string]any{"type": "labs/list"}
+		}),
+	}
+
+	var updData string
+	updateCmd := &cobra.Command{
+		Use:   "update",
+		Short: "Toggle a preview feature (--data '{\"domain\":..,\"preview_feature\":..,\"enabled\":true}')",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			body, err := parseDataObject(updData)
+			if err != nil {
+				return err
+			}
+			if body == nil {
+				return errLabsUpdateData
+			}
+			body["type"] = "labs/update"
+			c, err := f.Client()
+			if err != nil {
+				return err
+			}
+			defer c.Close()
+			raw, err := c.WS(cmd.Context(), body)
+			if err != nil {
+				return err
+			}
+			return renderRaw(f, raw)
+		},
+	}
+	updateCmd.Flags().StringVar(&updData, "data", "", "Update JSON object (or @file.json)")
+	cmd.AddCommand(updateCmd)
+
 	return cmd
 }

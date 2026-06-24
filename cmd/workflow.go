@@ -18,6 +18,12 @@ func newWorkflowCmds(f *cmdutil.Factory) *cobra.Command {
 	parent := &cobra.Command{
 		Use:   "workflow",
 		Short: "Manage automations, scripts, and scenes",
+		Long: `Manage automations, scripts, and scenes. Each subcommand takes a domain
+(automation|script|scene) and supports list/get/save/delete/reload/trigger.
+"save" reads a YAML or JSON document via --file.`,
+		Example: `  hass-cli workflow automation list
+  hass-cli workflow automation save my_auto --file my_auto.yaml
+  hass-cli workflow scene get scene.movie_time`,
 	}
 	for _, domain := range []string{"automation", "script", "scene"} {
 		parent.AddCommand(newWorkflowCmd(f, domain))

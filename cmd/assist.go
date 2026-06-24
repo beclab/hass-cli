@@ -15,6 +15,9 @@ func newAssistCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "assist",
 		Short: "Manage Assist voice pipelines",
+		Example: `  hass-cli assist pipeline list
+  hass-cli assist pipeline get
+  hass-cli assist languages`,
 	}
 	cmd.AddCommand(newAssistPipelineCmd(f))
 

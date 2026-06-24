@@ -16,6 +16,9 @@ func newStatisticsCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:     "statistics",
 		Aliases: []string{"stats"},
 		Short:   "Recorder long-term statistics (list, metadata, period)",
+		Example: `  hass-cli statistics list
+  hass-cli statistics metadata --ids sensor.grid_consumption
+  hass-cli statistics period --ids sensor.grid_consumption --start 2026-01-01T00:00:00+00:00`,
 	}
 
 	cmd.AddCommand(&cobra.Command{
@@ -32,22 +35,13 @@ func newStatisticsCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List statistic ids (--type mean|sum to filter)",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: wsRunCols(f, colsStatistics, func([]string) map[string]any {
 			body := map[string]any{"type": "recorder/list_statistic_ids"}
 			if statType != "" {
 				body["statistic_type"] = statType
 			}
-			c, err := f.Client()
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-			raw, err := c.WS(cmd.Context(), body)
-			if err != nil {
-				return err
-			}
-			return renderRawCols(f, raw, colsStatistics)
-		},
+			return body
+		}),
 	}
 	listCmd.Flags().StringVar(&statType, "type", "", "Filter by statistic type: mean|sum")
 	cmd.AddCommand(listCmd)

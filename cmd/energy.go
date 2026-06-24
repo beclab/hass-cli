@@ -15,6 +15,9 @@ func newEnergyCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "energy",
 		Short: "Energy dashboard preferences and validation",
+		Example: `  hass-cli energy prefs get
+  hass-cli energy prefs save --file energy.yaml
+  hass-cli energy validate`,
 	}
 
 	cmd.AddCommand(&cobra.Command{

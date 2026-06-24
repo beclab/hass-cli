@@ -84,6 +84,44 @@ func wsCall(f *cmdutil.Factory, cmd *cobra.Command, payload map[string]any) erro
 	return renderRaw(f, raw)
 }
 
+// wsCallCols is wsCall with command-supplied default table columns.
+func wsCallCols(f *cmdutil.Factory, cmd *cobra.Command, payload map[string]any, cols string) error {
+	c, err := f.Client()
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	raw, err := c.WS(cmd.Context(), payload)
+	if err != nil {
+		return err
+	}
+	return renderRawCols(f, raw, cols)
+}
+
+// wsRunCols is wsRun with command-supplied default table columns.
+func wsRunCols(f *cmdutil.Factory, cols string, payload func(args []string) map[string]any) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		return wsCallCols(f, cmd, payload(args), cols)
+	}
+}
+
+// supervisorRun returns a cobra RunE that proxies a Supervisor endpoint, gated
+// on a Supervised/HA OS install via requireSupervisor.
+func supervisorRun(f *cmdutil.Factory, method string, endpoint func(args []string) string) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		c, err := requireSupervisor(cmd, f)
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+		raw, err := c.SupervisorAPI(cmd.Context(), method, endpoint(args), nil)
+		if err != nil {
+			return err
+		}
+		return renderRaw(f, raw)
+	}
+}
+
 // requireData parses --data and fails if it is empty, so write commands report
 // a clear local error instead of sending an empty payload to Home Assistant.
 func requireData(data string) (map[string]any, error) {

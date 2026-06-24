@@ -12,6 +12,8 @@ func newSupervisorCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "supervisor",
 		Short: "Supervisor info (HA OS/Supervised installs only)",
+		Example: `  hass-cli supervisor info
+  hass-cli supervisor stats`,
 	}
 
 	for _, sub := range []struct {
@@ -28,18 +30,9 @@ func newSupervisorCmd(f *cmdutil.Factory) *cobra.Command {
 			Use:   sub.use,
 			Short: sub.short,
 			Args:  cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, args []string) error {
-				c, err := requireSupervisor(cmd, f)
-				if err != nil {
-					return err
-				}
-				defer c.Close()
-				raw, err := c.SupervisorAPI(cmd.Context(), "get", endpoint, nil)
-				if err != nil {
-					return err
-				}
-				return renderRaw(f, raw)
-			},
+			RunE: supervisorRun(f, "get", func([]string) string {
+				return endpoint
+			}),
 		})
 	}
 

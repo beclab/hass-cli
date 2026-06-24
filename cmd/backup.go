@@ -10,6 +10,9 @@ func newBackupCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "backup",
 		Short: "List, create, inspect, delete, and restore backups",
+		Example: `  hass-cli backup list
+  hass-cli backup create --auto
+  hass-cli backup restore <slug> --data '{"agent_id":"backup.local"}'`,
 	}
 
 	cmd.AddCommand(&cobra.Command{

@@ -9,6 +9,9 @@ func newStateCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "state",
 		Short: "Read and write entity states",
+		Example: `  hass-cli state list
+  hass-cli state get sun.sun
+  hass-cli state set sensor.foo --state 42 --attributes '{"unit_of_measurement":"C"}'`,
 	}
 
 	cmd.AddCommand(&cobra.Command{

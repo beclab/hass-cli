@@ -13,6 +13,13 @@ func newRegistryCmds(f *cmdutil.Factory) *cobra.Command {
 	parent := &cobra.Command{
 		Use:   "registry",
 		Short: "Manage area/device/entity/floor/label registries",
+		Long: `Manage the area, device, entity, floor, label, and category registries.
+The <id> is positional on update/delete. The category registry additionally
+requires --scope (automation|script|scene|...).`,
+		Example: `  hass-cli registry area list
+  hass-cli registry area create --data '{"name":"Garage"}'
+  hass-cli registry area update garage --data '{"name":"Garage Bay"}'
+  hass-cli registry category list --scope automation`,
 	}
 	for _, name := range []string{"area", "device", "entity", "floor", "label"} {
 		parent.AddCommand(newRegistryCmd(f, name))

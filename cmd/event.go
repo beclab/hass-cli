@@ -13,6 +13,8 @@ func newEventCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "event",
 		Short: "Fire and watch events",
+		Example: `  hass-cli event fire my_event --data '{"foo":"bar"}'
+  hass-cli event watch state_changed`,
 	}
 
 	var dataJSON string

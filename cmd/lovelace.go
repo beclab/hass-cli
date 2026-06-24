@@ -17,6 +17,9 @@ func newLovelaceCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:     "lovelace",
 		Aliases: []string{"dashboard"},
 		Short:   "Manage Lovelace dashboards, configs, and resources",
+		Example: `  hass-cli lovelace dashboard list
+  hass-cli lovelace config get --dashboard ops-room
+  hass-cli lovelace config save --dashboard ops-room --file dash.yaml`,
 	}
 	cmd.AddCommand(newLovelaceDashboardCmd(f))
 	cmd.AddCommand(newLovelaceConfigCmd(f))
@@ -34,18 +37,9 @@ func newLovelaceDashboardCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List dashboards",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := f.Client()
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-			raw, err := c.WS(cmd.Context(), map[string]any{"type": "lovelace/dashboards/list"})
-			if err != nil {
-				return err
-			}
-			return renderRawCols(f, raw, colsDashboard)
-		},
+		RunE: wsRunCols(f, colsDashboard, func([]string) map[string]any {
+			return map[string]any{"type": "lovelace/dashboards/list"}
+		}),
 	})
 
 	var createData string

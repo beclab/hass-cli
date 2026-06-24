@@ -15,6 +15,9 @@ func newRawCmds(f *cmdutil.Factory) *cobra.Command {
 	parent := &cobra.Command{
 		Use:   "raw",
 		Short: "Call the REST or WebSocket API directly (advanced)",
+		Example: `  hass-cli raw api GET states/sun.sun
+  hass-cli raw ws get_config
+  hass-cli raw ws supervisor/api --data '{"endpoint":"/addons","method":"get"}'`,
 	}
 
 	var apiData string

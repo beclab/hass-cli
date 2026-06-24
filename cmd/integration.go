@@ -15,6 +15,13 @@ func newIntegrationCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:     "integration",
 		Aliases: []string{"config-entry"},
 		Short:   "Manage integrations (config entries): list, reload, enable/disable, delete",
+		Long: `Manage integrations (config entries). Use the "flow" subtree to add an
+integration: a schema-driven, multi-step data-entry flow
+(handlers -> start -> get/step -> create_entry|abort).`,
+		Example: `  hass-cli integration list
+  hass-cli integration reload <entry_id>
+  hass-cli integration flow handlers
+  hass-cli integration flow start hue`,
 	}
 
 	var domain string
@@ -22,22 +29,13 @@ func newIntegrationCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:   "list",
 		Short: "List config entries (optionally --domain)",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := f.Client()
-			if err != nil {
-				return err
-			}
-			defer c.Close()
+		RunE: wsRunCols(f, colsIntegration, func([]string) map[string]any {
 			payload := map[string]any{"type": "config_entries/get"}
 			if domain != "" {
 				payload["domain"] = domain
 			}
-			raw, err := c.WS(cmd.Context(), payload)
-			if err != nil {
-				return err
-			}
-			return renderRawCols(f, raw, colsIntegration)
-		},
+			return payload
+		}),
 	}
 	listCmd.Flags().StringVar(&domain, "domain", "", "Filter by integration domain")
 	cmd.AddCommand(listCmd)

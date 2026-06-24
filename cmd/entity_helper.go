@@ -29,6 +29,9 @@ func newHelperCmds(f *cmdutil.Factory) *cobra.Command {
 	parent := &cobra.Command{
 		Use:   "helper",
 		Short: "Manage helper entities (input_*, counter, timer, schedule)",
+		Example: `  hass-cli helper input_boolean list
+  hass-cli helper input_boolean create --data '{"name":"Guest Mode"}'
+  hass-cli helper counter update visits --data '{"step":2}'`,
 	}
 	for _, t := range helperTypes {
 		parent.AddCommand(newHelperTypeCmd(f, t))
@@ -47,18 +50,9 @@ func newHelperTypeCmd(f *cmdutil.Factory, typ string) *cobra.Command {
 		Use:   "list",
 		Short: fmt.Sprintf("List %s helpers", typ),
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			c, err := f.Client()
-			if err != nil {
-				return err
-			}
-			defer c.Close()
-			raw, err := c.WS(cmd.Context(), map[string]any{"type": typ + "/list"})
-			if err != nil {
-				return err
-			}
-			return renderRawCols(f, raw, colsHelper)
-		},
+		RunE: wsRunCols(f, colsHelper, func([]string) map[string]any {
+			return map[string]any{"type": typ + "/list"}
+		}),
 	})
 
 	var createData string

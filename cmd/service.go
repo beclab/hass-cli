@@ -14,6 +14,9 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service",
 		Short: "List and call services",
+		Example: `  hass-cli service list
+  hass-cli service describe light.turn_on
+  hass-cli service call light.turn_on --arguments entity_id=light.kitchen`,
 	}
 
 	cmd.AddCommand(&cobra.Command{

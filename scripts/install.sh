@@ -91,4 +91,4 @@ case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) err "note: $BIN_DIR is not on your PATH; add it to use 'hass-cli' directly" ;;
 esac
-err "run 'hass-cli init' to configure your Home Assistant connection"
+err "run 'hass-cli profile login' to configure your Home Assistant connection"

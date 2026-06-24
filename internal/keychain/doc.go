@@ -1,6 +1,6 @@
 // Package keychain provides cross-platform secure storage for hass-cli secrets
 // (currently the per-profile Home Assistant long-lived access tokens written by
-// the `profile login` and `init` commands).
+// the `profile login` command).
 //
 // The implementation is adapted from the Olares CLI keychain package (same
 // Get/Set/Remove surface, same per-platform strategy split):

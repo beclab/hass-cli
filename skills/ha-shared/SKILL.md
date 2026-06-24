@@ -28,9 +28,10 @@ the token is stored in the OS keychain (not in a plaintext file), and the index
 (`profiles.json`, no secrets) lives under the config dir.
 
 ```bash
-hass-cli init                 # interactive: prompts URL + token, validates, saves
-# or non-interactively:
-hass-cli profile login home --server http://homeassistant.local:8123
+# interactive on a terminal: prompts for URL + token (hidden), validates, saves
+hass-cli profile login home
+# non-interactive (token via stdin):
+printf '%s' "$TOKEN" | hass-cli profile login home --server http://homeassistant.local:8123 --token-stdin
 ```
 
 Manage profiles with `hass-cli profile list/use/show/remove`. Select one per
@@ -56,8 +57,7 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 
 | Intent | Command | Skill |
 |---|---|---|
-| First-run setup / save a server+token | `hass-cli init` | ha-shared |
-| Manage profiles (multiple servers) | `hass-cli profile login/list/use/show/remove` | ha-shared |
+| First-run setup / manage profiles | `hass-cli profile login/list/use/show/remove` | ha-shared |
 | Connectivity check | `hass-cli ping` | ha-shared |
 | Read entity states | `hass-cli state list/get` | ha-states |
 | Call a service | `hass-cli service call <domain.service>` | ha-services |
@@ -116,7 +116,7 @@ hass-cli registry area create --data '{\"name\":\"Garage\"}'
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `no server configured` / `no token configured` | no profile, env, or flags | run `hass-cli init`, or set `HASS_SERVER` + `HASS_TOKEN` |
+| `no server configured` / `no token configured` | no profile, env, or flags | run `hass-cli profile login`, or set `HASS_SERVER` + `HASS_TOKEN` |
 | `HTTP 401` | bad/expired token | regenerate the long-lived token, then `hass-cli profile login <name> --force` |
 | `profile "x" already has a valid token` | re-login to an active profile | pass `--force`, or `hass-cli profile remove x` first |
 | `authentication failed: auth_invalid` (WS) | token rejected on WS | same token as REST; regenerate |

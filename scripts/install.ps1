@@ -62,4 +62,4 @@ if ($userPath -notlike "*$BinDir*") {
   Write-Host "note: $BinDir is not on your PATH. Add it with:"
   Write-Host "  setx PATH `"$BinDir;`$env:PATH`""
 }
-Write-Host "run 'hass-cli init' to configure your Home Assistant connection"
+Write-Host "run 'hass-cli profile login' to configure your Home Assistant connection"

@@ -35,12 +35,12 @@ const msg = {
   done:
     'You are all set!\n\n' +
     'Next:\n' +
-    '  hass-cli init             # save your Home Assistant URL + token\n' +
+    '  hass-cli profile login    # save your Home Assistant URL + token\n' +
     '  hass-cli ping             # verify connectivity\n\n' +
     'Then tell your AI agent: "Load the ha-shared skill, then use hass-cli to ..."',
   nonTtyHint:
     'To finish setup, run:\n' +
-    '  hass-cli init\n' +
+    '  hass-cli profile login\n' +
     '  hass-cli ping',
 };
 

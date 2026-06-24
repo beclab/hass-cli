@@ -44,9 +44,10 @@ First create a long-lived access token on your HA profile page
 plaintext file):
 
 ```bash
-hass-cli init                 # interactive: prompts URL + token, validates, saves
-# or non-interactively:
-hass-cli profile login home --server http://homeassistant.local:8123
+# interactive: run on a terminal and it prompts for URL + token (hidden)
+hass-cli profile login home
+# or non-interactively (token piped via stdin):
+printf '%s' "$TOKEN" | hass-cli profile login home --server http://homeassistant.local:8123 --token-stdin
 ```
 
 A profile bundles a server URL with its token. The index (`profiles.json`, no

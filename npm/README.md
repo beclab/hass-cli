@@ -14,8 +14,8 @@ npx @bytetrade/hass-cli@latest --help
 
 # install globally:
 npm install -g @bytetrade/hass-cli
-hass-cli init          # save your Home Assistant URL + token
-hass-cli ping          # verify connectivity
+hass-cli profile login   # save your Home Assistant URL + token
+hass-cli ping            # verify connectivity
 ```
 
 ## First-run wizard
@@ -25,7 +25,7 @@ npx @bytetrade/hass-cli@latest install
 ```
 
 This installs the CLI globally and adds the bundled AI agent skills
-(`npx skills add bytetrade/hass-cli`), then points you at `hass-cli init`.
+(`npx skills add bytetrade/hass-cli`), then points you at `hass-cli profile login`.
 
 ## Supported platforms
 
@@ -42,5 +42,5 @@ This installs the CLI globally and adds the bundled AI agent skills
 
 hass-cli reads connection settings from a saved profile (token stored in the OS
 keychain), then `HASS_SERVER` / `HASS_TOKEN` environment variables, then
-`--server` / `--token` flags. Run `hass-cli init` for guided setup, or see the
-[main README](https://github.com/bytetrade/hass-cli).
+`--server` / `--token` flags. Run `hass-cli profile login` for guided setup, or
+see the [main README](https://github.com/bytetrade/hass-cli).

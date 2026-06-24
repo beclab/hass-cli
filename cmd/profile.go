@@ -48,8 +48,7 @@ linux, and DPAPI under HKCU\Software\HassCli on windows. The profile index
 	return cmd
 }
 
-// loginOptions carries the inputs shared by `profile login` and the `init`
-// wizard.
+// loginOptions carries the inputs for `profile login`.
 type loginOptions struct {
 	name        string
 	server      string
@@ -82,8 +81,14 @@ valid token is rejected unless --force is passed.`,
 				o.name = args[0]
 			}
 			o.interactive = true
-			_, err := runProfileLogin(cmd.Context(), o)
-			return err
+			if _, err := runProfileLogin(cmd.Context(), o); err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			fmt.Fprintln(out, "\nNext steps:")
+			fmt.Fprintln(out, "  hass-cli ping              # verify connectivity")
+			fmt.Fprintln(out, "  hass-cli skill list        # browse bundled agent skills")
+			return nil
 		},
 	}
 	cmd.Flags().StringVarP(&o.server, "server", "s", "", "Home Assistant URL (e.g. http://homeassistant.local:8123)")
@@ -97,8 +102,9 @@ valid token is rejected unless --force is passed.`,
 }
 
 // runProfileLogin validates server+token, stores the token in the keychain,
-// and upserts the profile. Returns the persisted entry. Shared by
-// `profile login` and `init`.
+// and upserts the profile. Returns the persisted entry. It performs the
+// interactive URL + hidden-token prompts when run on a terminal, so
+// `profile login` doubles as the first-run setup wizard.
 func runProfileLogin(ctx context.Context, o *loginOptions) (*profile.Entry, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -222,7 +228,7 @@ func newProfileListCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			if len(idx.Profiles) == 0 {
 				fmt.Fprintln(out, "no profiles configured.")
-				fmt.Fprintln(out, "run `hass-cli profile login <name> --server <url>` or `hass-cli init` to add one.")
+				fmt.Fprintln(out, "run `hass-cli profile login <name> --server <url>` to add one.")
 				return nil
 			}
 			store := profile.NewTokenStore()
@@ -319,7 +325,7 @@ func newProfileCurrentCmd() *cobra.Command {
 			}
 			cur := idx.Current()
 			if cur == nil {
-				return errors.New("no current profile; run `hass-cli profile login` or `hass-cli init`")
+				return errors.New("no current profile; run `hass-cli profile login`")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n",
 				cur.Name, cur.Server, profile.Status(profile.NewTokenStore(), cur.Name, time.Now()))

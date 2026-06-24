@@ -143,6 +143,17 @@ Check "pipeline get preferred" "conversation_engine" @("assist", "pipeline", "ge
 Check "assist languages" "languages" @("assist", "languages", "-o", "json")
 Check "assist devices" "[" @("assist", "devices", "-o", "json")
 
+Write-Host "`n=== P3: category registry / energy / statistics ==="
+Check "category list" "[" @("registry", "category", "list", "--scope", "automation", "-o", "json")
+$cat = & .\hass-cli.exe registry category create --scope automation --data (J "cat.json" '{"name":"HC Cat"}') -o json | ConvertFrom-Json
+Check "category created" "HC Cat" @("registry", "category", "list", "--scope", "automation", "-o", "json")
+& .\hass-cli.exe registry category delete $cat.category_id --scope automation -o json | Out-Null
+& .\hass-cli.exe energy prefs save --data (J "ep.json" '{"energy_sources":[],"device_consumption":[]}') -o json | Out-Null
+Check "energy prefs get" "energy_sources" @("energy", "prefs", "get", "-o", "json")
+Check "energy info" "cost_sensors" @("energy", "info", "-o", "json")
+Check "statistics info" "recording" @("statistics", "info", "-o", "json")
+Check "statistics list" "[" @("statistics", "list", "-o", "json")
+
 # cleanup created helpers
 foreach ($h in @(@("input_boolean", "hc_flag"), @("counter", "hc_count"), @("input_number", "hc_level"), @("input_select", "hc_mode"))) {
     & .\hass-cli.exe helper $h[0] delete $h[1] 2>&1 | Out-Null

@@ -137,6 +137,14 @@ func mockHA(t *testing.T) *httptest.Server {
 				}
 			case "assist_pipeline/language/list":
 				result = map[string]any{"languages": []string{"en", "de"}}
+			case "config/category_registry/list":
+				result = []map[string]any{{"category_id": "c1", "name": "Lighting", "icon": nil}}
+			case "energy/get_prefs":
+				result = map[string]any{"energy_sources": []any{}, "device_consumption": []any{}}
+			case "recorder/info":
+				result = map[string]any{"recording": true, "backlog": 0}
+			case "recorder/list_statistic_ids":
+				result = []map[string]any{{"statistic_id": "sensor.energy", "has_sum": true}}
 			case "supervisor/api":
 				result = map[string]any{"addons": []any{}}
 			default:
@@ -207,6 +215,10 @@ func TestSmoke(t *testing.T) {
 		{"lovelace-dashboards", []string{"-o", "json", "lovelace", "dashboard", "list"}, "ops-room"},
 		{"assist-pipelines", []string{"-o", "json", "assist", "pipeline", "list"}, "preferred_pipeline"},
 		{"assist-languages", []string{"-o", "json", "assist", "languages"}, "languages"},
+		{"category-list", []string{"-o", "json", "registry", "category", "list", "--scope", "automation"}, "Lighting"},
+		{"energy-prefs", []string{"-o", "json", "energy", "prefs", "get"}, "energy_sources"},
+		{"stats-info", []string{"-o", "json", "statistics", "info"}, "recording"},
+		{"stats-list", []string{"-o", "json", "statistics", "list"}, "statistic_id"},
 		{"workflow-list", []string{"-o", "json", "workflow", "automation", "list"}, "automation.demo"},
 		{"service-describe", []string{"-o", "json", "service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"system-health", []string{"-o", "json", "system", "health"}, "homeassistant"},

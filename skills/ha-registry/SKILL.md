@@ -52,6 +52,21 @@ hass-cli registry area delete garage
 > `--data` also accepts `@file.json`; on PowerShell prefer that over inline JSON
 > (see ha-shared for the quoting note).
 
+## Categories (scoped)
+
+Categories group items within a scope (e.g. `automation`, `script`, `scene`).
+Unlike the other registries, every call needs `--scope`:
+
+```bash
+hass-cli registry category list   --scope automation
+hass-cli registry category create --scope automation --data '{"name":"Lighting"}'
+hass-cli registry category update <category_id> --scope automation --data '{"name":"Lights","icon":"mdi:lightbulb"}'
+hass-cli registry category delete <category_id> --scope automation
+```
+
+Assign an automation to a category by setting its `categories` via the entity
+registry: `hass-cli registry entity update automation.x --data '{"categories":{"automation":"<category_id>"}}'`.
+
 ## Tips
 
 - Get ids first via the matching `list`. Names are not ids.

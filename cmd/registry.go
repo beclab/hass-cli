@@ -17,7 +17,58 @@ func newRegistryCmds(f *cmdutil.Factory) *cobra.Command {
 	for _, name := range []string{"area", "device", "entity", "floor", "label"} {
 		parent.AddCommand(newRegistryCmd(f, name))
 	}
+	parent.AddCommand(newCategoryRegistryCmd(f))
 	return parent
+}
+
+// newCategoryRegistryCmd handles the category registry, which differs from the
+// others by requiring a --scope (e.g. automation/script/scene) on every call.
+func newCategoryRegistryCmd(f *cmdutil.Factory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "category",
+		Short: "Operate on the category registry (requires --scope)",
+	}
+
+	for _, op := range []string{"list", "create", "update", "delete"} {
+		var scope, dataJSON string
+		use := op
+		args := cobra.NoArgs
+		if op == "update" || op == "delete" {
+			use = op + " <category_id>"
+			args = cobra.ExactArgs(1)
+		}
+		c := &cobra.Command{
+			Use:   use,
+			Short: fmt.Sprintf("%s category registry entries", op),
+			Args:  args,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if scope == "" {
+					return fmt.Errorf("--scope is required (e.g. automation, script, scene)")
+				}
+				payload := map[string]any{
+					"type":  "config/category_registry/" + op,
+					"scope": scope,
+				}
+				if op == "update" || op == "delete" {
+					payload["category_id"] = args[0]
+				}
+				fields, err := parseDataObject(dataJSON)
+				if err != nil {
+					return err
+				}
+				for k, v := range fields {
+					payload[k] = v
+				}
+				return wsCall(f, cmd, payload)
+			},
+		}
+		c.Flags().StringVar(&scope, "scope", "", "Category scope: automation|script|scene|...")
+		if op != "list" {
+			c.Flags().StringVar(&dataJSON, "data", "", "Fields as a JSON object (or @file.json)")
+		}
+		cmd.AddCommand(c)
+	}
+	return cmd
 }
 
 func newRegistryCmd(f *cmdutil.Factory, name string) *cobra.Command {

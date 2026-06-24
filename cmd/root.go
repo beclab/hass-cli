@@ -55,6 +55,8 @@ func NewRootCommand() *cobra.Command {
 		newBackupCmd(f),
 		newLovelaceCmd(f),
 		newAssistCmd(f),
+		newEnergyCmd(f),
+		newStatisticsCmd(f),
 		newSystemCmd(f),
 		newRawCmds(f),
 		newSkillCmd(),

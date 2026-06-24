@@ -5,7 +5,7 @@ description: "Inspect and configure Home Assistant's Energy dashboard with hass-
 metadata:
   requires:
     bins: ["hass-cli"]
-  cliHelp: "hass-cli raw ws --help"
+  cliHelp: "hass-cli energy --help"
 ---
 
 # ha-energy
@@ -13,49 +13,47 @@ metadata:
 The Energy dashboard config and statistics. **Prerequisite:**
 [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
-> No typed `energy` command yet — use `raw ws` for the energy WS API and
-> `raw ws recorder/statistics_during_period` for the numbers.
-
 ## Read the energy setup
 
 ```bash
-# Configured sources/devices (grid, solar, battery, gas, water, individual devices)
-hass-cli raw ws energy/get_prefs -o json
-
-# Validate the configuration (surfaces misconfigured sensors)
-hass-cli raw ws energy/validate -o json
-
-# Solar forecast (if a forecast provider is configured)
-hass-cli raw ws energy/solar_forecast -o json
+hass-cli energy prefs get        # configured sources + device consumption
+hass-cli energy validate         # surface misconfigured sensors
+hass-cli energy info             # cost sensors / solar forecast domains
 ```
 
-`energy/get_prefs` returns `energy_sources` (each with `stat_energy_from/to`,
+`energy prefs get` returns `energy_sources` (each with `stat_energy_from/to`,
 `stat_cost`, ...) and `device_consumption` (per-device `stat_consumption`).
-Those `stat_*` ids are statistic ids you feed to the statistics query below.
+Those `stat_*` ids are statistic ids you feed to `hass-cli statistics period`.
+
+> A brand-new instance with no configured Energy dashboard returns
+> `not_found: No prefs` until you save prefs once.
+
+## Change the energy config
+
+```bash
+hass-cli energy prefs save --data @prefs.json
+```
+
+The payload mirrors `energy prefs get`: `energy_sources` + `device_consumption`
+(+ `device_consumption_water`). Round-trip: `get` → edit → `save`.
 
 ## Pull consumption / cost numbers
 
-Energy uses long-term statistics, not live state. Query a period:
+Energy uses long-term statistics, not live state (see
+[`../ha-statistics/SKILL.md`](../ha-statistics/SKILL.md)):
 
 ```bash
-hass-cli raw ws recorder/statistics_during_period --data '{
-  "start_time":"2026-06-01T00:00:00+00:00",
-  "statistic_ids":["sensor.grid_consumption","sensor.solar_production"],
-  "period":"day"
-}' -o json
+hass-cli statistics period \
+  --ids sensor.grid_consumption,sensor.solar_production \
+  --start 2026-06-01T00:00:00+00:00 --period day
 ```
 
-`period` is `5minute|hour|day|week|month`. Each bucket has `sum`/`state`/`mean`
-depending on the sensor. For "what used the most", read the device
-`stat_consumption` ids from `energy/get_prefs`, then compare their `sum` deltas
-over the period.
+For "what used the most", read the device `stat_consumption` ids from
+`energy prefs get`, then compare their `sum` deltas over the period.
 
 ## Find energy sensors
 
 ```bash
 hass-cli state list -o json | rg '"device_class": "energy"'
-hass-cli raw ws recorder/list_statistic_ids --data '{"statistic_type":"sum"}' -o json
+hass-cli statistics list --type sum
 ```
-
-Changing the energy config (`energy/save_prefs`) is possible via `raw ws` but is
-rarely needed from the CLI; prefer reading + analysis here.

@@ -11,37 +11,69 @@ Version: `0.1.0`.
 
 ## Install
 
+Pick whichever fits your environment:
+
 ```bash
+# npm / npx (downloads the matching prebuilt binary):
+npx @bytetrade/hass-cli@latest --help
+npm install -g @bytetrade/hass-cli
+
+# curl | sh (Linux/macOS): installs to /usr/local/bin or ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/bytetrade/hass-cli/main/scripts/install.sh | sh
+
+# PowerShell (Windows):
+irm https://raw.githubusercontent.com/bytetrade/hass-cli/main/scripts/install.ps1 | iex
+
+# Go toolchain:
 go install github.com/bytetrade/hass-cli@latest
-# or from source
+
+# from source:
 go build -o hass-cli .
 ```
 
+Or download a release archive from
+[GitHub Releases](https://github.com/bytetrade/hass-cli/releases) and put the
+binary on your PATH.
+
 ## Configure
 
-Create a long-lived access token on your HA profile page
-("Long-Lived Access Tokens" -> Create Token), then:
+First create a long-lived access token on your HA profile page
+("Long-Lived Access Tokens" -> Create Token).
+
+**Recommended — save a profile** (token stored in the OS keychain, not a
+plaintext file):
+
+```bash
+hass-cli init                 # interactive: prompts URL + token, validates, saves
+# or non-interactively:
+hass-cli profile login home --server http://homeassistant.local:8123
+```
+
+A profile bundles a server URL with its token. The index (`profiles.json`, no
+secrets) lives under the config dir; the token goes to the OS keychain (macOS
+Keychain, Windows DPAPI, or an AES-256-GCM file under `~/.local/share` on
+Linux). Manage profiles with:
+
+```bash
+hass-cli profile list             # NAME / SERVER / STATUS / VERSION (* = current)
+hass-cli profile use <name>       # switch current (use `-` to switch back)
+hass-cli profile show [name]      # details, masked token (--validate to check live)
+hass-cli profile remove <name>    # delete profile + its stored token
+```
+
+Select a profile per call with `--profile <name>` (default: current profile).
+
+**Alternative — environment variables** (no keychain, handy for CI):
 
 ```bash
 export HASS_SERVER="http://homeassistant.local:8123"
 export HASS_TOKEN="<token>"
 ```
 
-Or pass `--server` / `--token` per call, or use `--profile <name>` with
-`~/.config/hass-cli/config.yaml`:
-
-```yaml
-default: home
-profiles:
-  home:
-    server: http://homeassistant.local:8123
-    token: <token>
-    insecure: false
-    timeout: 10
-```
-
-Precedence is profile < environment < flags. `HASS_SERVER` must include a
-scheme (`http://` or `https://`).
+A legacy `~/.config/hass-cli/config.yaml` with inline tokens is still read as a
+fallback. Resolution precedence (low → high): profile (`profiles.json` +
+keychain) → `config.yaml` → environment → `--server`/`--token` flags.
+`HASS_SERVER` must include a scheme (`http://` or `https://`).
 
 ## Global flags
 
@@ -49,7 +81,7 @@ scheme (`http://` or `https://`).
 |------|-------------|
 | `-s, --server` | HA URL (env `HASS_SERVER`) |
 | `--token` | Long-lived token (env `HASS_TOKEN`) |
-| `--profile` | Named profile from `config.yaml` |
+| `--profile` | Named profile from `profiles.json` (keychain token) or legacy `config.yaml` |
 | `--insecure` | Skip TLS certificate verification |
 | `--timeout` | Request timeout in seconds (default 10); also bounds WebSocket calls |
 | `-o, --output` | `json` \| `yaml` \| `table` \| `ndjson` (table is default) |

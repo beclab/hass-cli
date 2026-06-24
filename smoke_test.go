@@ -285,6 +285,24 @@ func TestProfileFlow(t *testing.T) {
 	}
 }
 
+// TestInitFlow checks `hass-cli init` non-interactively saves a profile via the
+// same path the wizard uses, and prints next steps.
+func TestInitFlow(t *testing.T) {
+	srv := mockHA(t)
+	t.Setenv("HASS_CLI_CONFIG_DIR", t.TempDir())
+	t.Setenv("HASS_CLI_DATA_DIR", t.TempDir())
+
+	out := run(t, "init", "--name", "primary", "--server", srv.URL, "--token", "test-token")
+	if !strings.Contains(out, "Setup complete") || !strings.Contains(out, "primary") {
+		t.Fatalf("init output unexpected: %s", out)
+	}
+	out = run(t, "profile", "current")
+	if !strings.Contains(out, "primary") {
+		t.Fatalf("init did not set current profile: %s", out)
+	}
+	_ = run(t, "profile", "remove", "primary")
+}
+
 // TestValidation checks that write commands reject an empty --data locally.
 func TestValidation(t *testing.T) {
 	srv := mockHA(t)

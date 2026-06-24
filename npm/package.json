@@ -1,0 +1,54 @@
+{
+  "name": "@bytetrade/hass-cli",
+  "version": "0.0.0-placeholder",
+  "description": "Home Assistant CLI (hass-cli) Node wrapper. Run via `npx @bytetrade/hass-cli@latest <verb>` or install globally with `npm install -g @bytetrade/hass-cli`.",
+  "bin": {
+    "hass-cli": "./bin/hass-cli.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "prepublishOnly": "node scripts/check-version.js"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64",
+    "arm"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "README.md"
+  ],
+  "dependencies": {
+    "@clack/prompts": "^1.2.0",
+    "tar": "^7.4.3"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bytetrade/hass-cli.git",
+    "directory": "npm"
+  },
+  "homepage": "https://github.com/bytetrade/hass-cli/tree/main",
+  "bugs": {
+    "url": "https://github.com/bytetrade/hass-cli/issues"
+  },
+  "keywords": [
+    "home-assistant",
+    "homeassistant",
+    "hass",
+    "hass-cli",
+    "smart-home",
+    "home-automation",
+    "cli",
+    "ai-agent"
+  ]
+}

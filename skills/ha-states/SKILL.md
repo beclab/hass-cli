@@ -21,7 +21,9 @@ hass-cli state get sensor.kitchen_temperature
 hass-cli state get light.kitchen -o yaml             # full attributes
 ```
 
-Shape tables:
+Shape tables. `state list` already defaults to
+`ENTITY=entity_id,STATE=state,NAME=attributes.friendly_name` in table mode;
+pass `--columns` to override:
 
 ```bash
 hass-cli state list --columns ENTITY=entity_id,STATE=state --sort-by entity_id

@@ -32,10 +32,12 @@ Those `stat_*` ids are statistic ids you feed to `hass-cli statistics period`.
 
 ```bash
 hass-cli energy prefs save --data @prefs.json
+hass-cli energy prefs save --file prefs.yaml    # YAML or JSON document
 ```
 
 The payload mirrors `energy prefs get`: `energy_sources` + `device_consumption`
-(+ `device_consumption_water`). Round-trip: `get` → edit → `save`.
+(+ `device_consumption_water`). Round-trip: `get` → edit → `save`. Use `--data`
+(`@file.json`) for inline JSON or `--file` for a YAML/JSON document.
 
 ## Pull consumption / cost numbers
 

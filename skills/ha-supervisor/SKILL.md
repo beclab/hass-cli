@@ -31,6 +31,7 @@ hass-cli addon restart core_mosquitto
 hass-cli addon logs   core_mosquitto
 
 hass-cli supervisor info                # supervisor/host/os/core info
+hass-cli supervisor stats               # supervisor cpu/memory usage
 hass-cli supervisor host
 hass-cli supervisor os
 hass-cli supervisor core

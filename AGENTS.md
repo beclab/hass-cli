@@ -16,14 +16,21 @@ Working rules for this repository (the public release directory for hass-cli).
 ## Architecture
 
 - `main.go` — entrypoint; embeds skills (`skills_embed.go`).
-- `cmd/` — small set of generic, schema-friendly verbs (cobra). Entity domains
-  (light/climate/...) are NOT separate commands; they are driven by
-  `service call` + the service schema, with knowledge living in skills.
+- `cmd/` — cobra verbs. Generic surfaces (state/service/event/template/raw) plus
+  typed command groups for the common APIs: registry, helper, workflow,
+  integration (+ flow), backup, lovelace, assist, energy, statistics, system,
+  addon, supervisor. Entity domains (light/climate/...) are NOT separate
+  commands; they are driven by `service call` + the service schema, with
+  knowledge living in skills. `addon`/`supervisor` are gated on a
+  Supervised/HA OS install (`requireSupervisor`).
 - `internal/client/` — unified transport facade. Business methods route to REST
   (`rest.go`) or WebSocket (`ws.go`) per capability; callers never pick the
-  transport. WS is lazily connected.
-- `internal/config/` — flag < env (`HASS_SERVER`/`HASS_TOKEN`/
-  `HASS_SUPERVISOR_TOKEN`) < profile resolution.
+  transport. WS is lazily connected and one-shot calls are bounded by
+  `--timeout` (subscriptions stay unbounded).
+- `internal/config/` — resolution order is profile < env (`HASS_SERVER`/
+  `HASS_TOKEN`/`HASS_SUPERVISOR_TOKEN`) < flags (later sources win).
+  `SupervisorToken` is parsed but reserved (not yet wired); the Supervisor
+  proxy path uses `HASS_TOKEN`.
 - `internal/output/` — table/json/yaml/ndjson rendering with `--columns`/`--sort-by`.
 - `skills/` — agent skills (`ha-shared` first), embedded into the binary.
 
@@ -31,4 +38,7 @@ Working rules for this repository (the public release directory for hass-cli).
 
 - Comments explain intent/constraints, not the obvious.
 - Prefer `--output json` shapes that are stable for agent consumption.
-- Mutating commands should support `--dry-run` as they are added.
+- Write commands validate required input locally (`requireData`) rather than
+  sending obviously-empty payloads to HA.
+- `--dry-run` is not yet implemented on mutating commands; add it deliberately
+  if/when needed rather than assuming it exists.

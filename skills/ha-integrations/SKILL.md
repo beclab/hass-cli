@@ -65,6 +65,7 @@ Adding an integration is a schema-driven, multi-step flow. Drive it with
 ```bash
 hass-cli integration flow handlers --type helper    # what can be set up
 hass-cli integration flow start <domain>            # begin; returns the first step
+hass-cli integration flow get <flow_id>             # re-read a flow's current step
 hass-cli integration flow step <flow_id> --data '{...}'   # submit each step's input
 hass-cli integration flow abort <flow_id>           # cancel
 ```

@@ -21,16 +21,30 @@ hass-cli reaches a Home Assistant instance two ways under one facade:
 - **REST API** (`/api/*`) — most reads/writes.
 - **WebSocket API** (`/api/websocket`) — registries, subscriptions, and the Supervisor proxy.
 
-Configure once via environment (preferred):
+Get a token: HA profile page -> "Long-Lived Access Tokens" -> Create Token.
+
+**Preferred: save a profile.** A profile bundles a server URL with its token;
+the token is stored in the OS keychain (not in a plaintext file), and the index
+(`profiles.json`, no secrets) lives under the config dir.
+
+```bash
+hass-cli init                 # interactive: prompts URL + token, validates, saves
+# or non-interactively:
+hass-cli profile login home --server http://homeassistant.local:8123
+```
+
+Manage profiles with `hass-cli profile list/use/show/remove`. Select one per
+call with `--profile <name>`; the default is the current profile.
+
+**Alternative: environment variables** (no keychain, good for CI):
 
 ```bash
 export HASS_SERVER="http://homeassistant.local:8123"
 export HASS_TOKEN="<long-lived access token>"
 ```
 
-Get a token: HA profile page -> "Long-Lived Access Tokens" -> Create Token.
-
-Override per call with `--server` / `--token`, or use `--profile <name>` to select a profile from `~/.config/hass-cli/config.yaml`.
+Precedence (low → high): profile (`profiles.json` + keychain) → legacy
+`config.yaml` → environment → explicit `--server` / `--token` flags.
 
 ## Output
 
@@ -42,6 +56,8 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 
 | Intent | Command | Skill |
 |---|---|---|
+| First-run setup / save a server+token | `hass-cli init` | ha-shared |
+| Manage profiles (multiple servers) | `hass-cli profile login/list/use/show/remove` | ha-shared |
 | Connectivity check | `hass-cli ping` | ha-shared |
 | Read entity states | `hass-cli state list/get` | ha-states |
 | Call a service | `hass-cli service call <domain.service>` | ha-services |
@@ -59,6 +75,8 @@ consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
 | Dashboards / cards / resources | `hass-cli lovelace ...` | ha-lovelace |
 | Areas/devices/entities/floors/labels/categories | `hass-cli registry <kind> ...` | ha-registry |
 | Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
+| Build a new automation from a request (playbook) | `hass-cli workflow ...` | ha-workflow-automation-builder |
+| Audit for dead entities / broken/unused automations (playbook) | `hass-cli system ...` + `state list` | ha-workflow-audit |
 | Integrations / config entries / discovery | `hass-cli integration ...` | ha-integrations |
 | Zigbee/Z-Wave/Matter/Thread gateways & networks | `hass-cli service call zha.* ...` / `hass-cli raw ws zha\|zwave_js\|matter\|thread/...` | ha-gateway |
 | Backups (create/restore/delete) | `hass-cli backup ...` | ha-backup |
@@ -98,8 +116,9 @@ hass-cli registry area create --data '{\"name\":\"Garage\"}'
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `no server configured` / `no token configured` | env/flags unset | set `HASS_SERVER` + `HASS_TOKEN` |
-| `HTTP 401` | bad/expired token | regenerate long-lived token |
+| `no server configured` / `no token configured` | no profile, env, or flags | run `hass-cli init`, or set `HASS_SERVER` + `HASS_TOKEN` |
+| `HTTP 401` | bad/expired token | regenerate the long-lived token, then `hass-cli profile login <name> --force` |
+| `profile "x" already has a valid token` | re-login to an active profile | pass `--force`, or `hass-cli profile remove x` first |
 | `authentication failed: auth_invalid` (WS) | token rejected on WS | same token as REST; regenerate |
 | `HTTP 404` on `config/automation/config/...` | `config` integration disabled | enable default_config / config integration |
 | TLS errors with self-signed cert | cert not trusted | add `--insecure` (dev only) |

@@ -1,6 +1,6 @@
 ---
 name: ha-presence
-version: 0.1.0
+version: 0.2.0
 description: "Work with Home Assistant presence and organization: people, zones, device trackers, and groups with hass-cli. Use to see who is home, check a person's location/zone, list zones, set a device_tracker's location, and read group membership for presence-based automations."
 metadata:
   requires:
@@ -18,14 +18,14 @@ People, zones, trackers, groups — the inputs for presence automations.
 
 ```bash
 # person.* state is "home", "not_home", or a zone name
-hass-cli state list -o json | rg '"entity_id": "person\.'
+hass-cli state list --domain person
 hass-cli state get person.alice -o json    # attributes: source, latitude, longitude
 ```
 
 ## Zones
 
 ```bash
-hass-cli state list -o json | rg '"entity_id": "zone\.'   # zone.home etc.
+hass-cli state list --domain zone   # zone.home etc.
 # Create/manage zone helpers like any helper config via the zone integration UI;
 # zone.home is built from the instance's configured location (see `config get`).
 ```

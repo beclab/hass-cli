@@ -1,6 +1,6 @@
 ---
 name: ha-lighting
-version: 0.1.0
+version: 0.2.0
 description: "Control Home Assistant lights, switches, and fans with hass-cli: turn on/off, dim, set color or color temperature, set fan speed/oscillation. Use for any 'turn on the lights', 'dim to 30%', 'make it warm white', 'set fan to medium' style request. All control goes through service call."
 metadata:
   requires:
@@ -10,11 +10,13 @@ metadata:
 
 # ha-lighting
 
-Lights, switches, fans. **Prerequisites:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md),
-[`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+Lights, switches, fans. Turning one on or off needs only the quick-control
+section of [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md); this skill adds
+brightness, colour, fans and group targets.
 
 > No `hass-cli light` command — drive everything with `service call`. Find
-> targets with `hass-cli state list -o json` (filter `entity_id` by domain).
+> targets with `hass-cli state list --domain light --search <name>`. The call
+> prints what it changed, so there is nothing to check afterwards.
 
 ## Lights (`light.*`)
 

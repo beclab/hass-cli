@@ -1,6 +1,6 @@
 ---
 name: ha-entities
-version: 0.1.0
+version: 0.2.0
 description: "Read and control the general Home Assistant entity domains with hass-cli that don't have a dedicated skill: sensor, binary_sensor, number, select, text, button, update, weather, vacuum, alarm_control_panel, siren, camera, todo lists, and calendars. Use for 'read this sensor', 'set this number/select/text helper-style entity', 'start the vacuum', 'arm the alarm', 'what's on my to-do list', 'next calendar event' requests."
 metadata:
   requires:
@@ -14,7 +14,7 @@ The long tail of entity domains. **Prerequisites:**
 [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md), [`../ha-services/SKILL.md`](../ha-services/SKILL.md).
 
 > Read with `state get`; control with `service call`. Find candidates with
-> `hass-cli state list -o json | rg '"entity_id": "<domain>\.'`.
+> `hass-cli state list --domain <domain>`.
 
 ## Read-only domains
 
@@ -66,7 +66,7 @@ hass-cli service call todo.remove_item --data '{"entity_id":"todo.shopping","ite
 ## Calendars (`calendar.*`)
 
 ```bash
-hass-cli state list -o json | rg '"entity_id": "calendar\.'
+hass-cli state list --domain calendar
 # Events in a window (REST):
 hass-cli raw api GET 'calendars/calendar.personal?start=2026-06-01T00:00:00Z&end=2026-06-30T00:00:00Z' -o json
 # Create an event:

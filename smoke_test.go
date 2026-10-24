@@ -57,12 +57,24 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 		case r.URL.Path == "/api/states":
 			writeJSON(w, []map[string]any{
 				{"entity_id": "sun.sun", "state": "above_horizon"},
-				{"entity_id": "light.kitchen", "state": "off"},
+				{"entity_id": "light.kitchen", "state": "off", "attributes": map[string]any{"friendly_name": "Kitchen Ceiling"}},
+				{"entity_id": "light.living_room", "state": "on", "attributes": map[string]any{"friendly_name": "客厅灯"}},
+				{"entity_id": "switch.kitchen_kettle", "state": "off", "attributes": map[string]any{"friendly_name": "Kettle"}},
 				{"entity_id": "automation.demo", "state": "on"},
 			})
 		case strings.HasPrefix(r.URL.Path, "/api/states/"):
 			id := strings.TrimPrefix(r.URL.Path, "/api/states/")
 			writeJSON(w, map[string]any{"entity_id": id, "state": "on"})
+		case r.URL.Path == "/api/services/light/turn_on":
+			// Home Assistant answers with the states the call changed: none when the light
+			// was already on.
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if body["entity_id"] == "light.kitchen" {
+				writeJSON(w, []map[string]any{{"entity_id": "light.kitchen", "state": "on", "attributes": map[string]any{"friendly_name": "Kitchen Ceiling", "brightness": 255}}})
+				return
+			}
+			writeJSON(w, []any{})
 		case strings.HasPrefix(r.URL.Path, "/api/services/"):
 			writeJSON(w, []any{})
 		default:
@@ -238,6 +250,10 @@ func TestSmoke(t *testing.T) {
 		{"supervisor-info", []string{"-o", "json", "supervisor", "info"}, ""},
 		{"skill-list-desc", []string{"skill", "list"}, "Home Assistant"},
 		{"state-list-table", []string{"state", "list"}, "ENTITY"},
+		{"state-list-domain", []string{"state", "list", "--domain", "switch"}, "switch.kitchen_kettle"},
+		{"state-list-search-name", []string{"state", "list", "--search", "客厅"}, "light.living_room"},
+		{"service-call-changed", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen"}, "light.kitchen"},
+		{"service-call-unchanged", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.living_room"}, "No entity changed state"},
 		{"state-list-yaml", []string{"-o", "yaml", "state", "list"}, "entity_id: light.kitchen"},
 		{"state-list-ndjson", []string{"-o", "ndjson", "state", "list"}, "{\"entity_id\":\"sun.sun\""},
 	}
@@ -337,5 +353,43 @@ func TestNoSupervisor(t *testing.T) {
 				t.Fatalf("want 'no Supervisor' message, got: %v", err)
 			}
 		})
+	}
+}
+
+// TestStateFilters pins what --domain and --search leave out, which the substring
+// checks above cannot show.
+func TestStateFilters(t *testing.T) {
+	srv := mockHA(t)
+	t.Setenv("HASS_SERVER", srv.URL)
+	t.Setenv("HASS_TOKEN", "test-token")
+	ids := func(args ...string) []string {
+		var states []map[string]any
+		if err := json.Unmarshal([]byte(run(t, append([]string{"-o", "json", "state", "list"}, args...)...)), &states); err != nil {
+			t.Fatal(err)
+		}
+		out := []string{}
+		for _, st := range states {
+			out = append(out, st["entity_id"].(string))
+		}
+		return out
+	}
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--domain", "light"}, "light.kitchen,light.living_room"},
+		{[]string{"--domain", "light,switch", "--search", "kitchen"}, "light.kitchen,switch.kitchen_kettle"},
+		{[]string{"--search", "KITCHEN ceiling"}, "light.kitchen"},
+		{[]string{"--search", "客厅"}, "light.living_room"},
+		{[]string{"--search", "garage"}, ""},
+	}
+	for _, tc := range cases {
+		if got := strings.Join(ids(tc.args...), ","); got != tc.want {
+			t.Errorf("state list %v = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+	// The table of a changed call is the compact one, not the whole state object.
+	if out := run(t, "service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen"); strings.Contains(out, "brightness") {
+		t.Errorf("service call table shows attributes: %s", out)
 	}
 }

@@ -70,7 +70,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderRaw(f, raw)
+			return renderCallResult(f, raw)
 		},
 	}
 	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object (or @file.json)")
@@ -135,4 +135,25 @@ func coerceValue(s string) any {
 		}
 	}
 	return s
+}
+
+// renderCallResult prints what a service call changed. Home Assistant answers with
+// the states the call changed, so this is the confirmation and no follow-up read is
+// needed. A table shows just entity, new state and name; an empty answer means
+// nothing changed, usually because the target was already in that state.
+// Non-table formats keep Home Assistant's body as it is.
+func renderCallResult(f *cmdutil.Factory, raw json.RawMessage) error {
+	if f.Output != "" && f.Output != "table" {
+		return renderRaw(f, raw)
+	}
+	var changed []any
+	if json.Unmarshal(raw, &changed) == nil && len(changed) == 0 {
+		r, err := f.Renderer()
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(r.Out, "Done. No entity changed state (it may already have been in the requested state).")
+		return err
+	}
+	return renderRawCols(f, raw, colsState)
 }

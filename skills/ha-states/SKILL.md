@@ -1,6 +1,6 @@
 ---
 name: ha-states
-version: 0.1.0
+version: 0.2.0
 description: "Read Home Assistant entity states and recent history with hass-cli. Use to answer 'is the light on', 'what's the temperature', 'list all sensors', 'what changed recently', or to inspect any entity's current state and attributes. Covers state list/get, table shaping (--columns/--sort-by), and history/logbook reads."
 metadata:
   requires:
@@ -16,7 +16,8 @@ Read entity state. **Prerequisite:** read [`../ha-shared/SKILL.md`](../ha-shared
 
 ```bash
 hass-cli state list                                  # every entity
-hass-cli state list -o json | jq '.[] | select(.entity_id|startswith("light."))'
+hass-cli state list --domain light                   # one domain (or light,switch)
+hass-cli state list --search kitchen                 # entity_id or friendly name, every word
 hass-cli state get sensor.kitchen_temperature
 hass-cli state get light.kitchen -o yaml             # full attributes
 ```

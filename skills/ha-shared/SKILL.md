@@ -1,7 +1,7 @@
 ---
 name: ha-shared
-version: 0.1.0
-description: "Shared foundation for all hass-cli skills. Read this FIRST. Covers connecting to a Home Assistant instance (HASS_SERVER + HASS_TOKEN long-lived token), the unified REST+WebSocket transport facade, output formats (table/json/yaml/ndjson), the raw passthrough escape hatches (raw api / raw ws), and the auth-error recovery table. Use whenever the user mentions Home Assistant, hass-cli, controlling smart-home entities, calling services, automations, or any HA REST/WebSocket API task."
+version: 0.2.0
+description: "Shared foundation for all hass-cli skills. Read this FIRST: its first section turns a device on/off, dims it or sets it in two commands without reading any other skill. Covers connecting to a Home Assistant instance (HASS_SERVER + HASS_TOKEN long-lived token), the unified REST+WebSocket transport facade, output formats (table/json/yaml/ndjson), the raw passthrough escape hatches (raw api / raw ws), and the auth-error recovery table. Use whenever the user mentions Home Assistant, hass-cli, controlling smart-home entities, calling services, automations, or any HA REST/WebSocket API task."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -13,6 +13,38 @@ metadata:
 **Read this before any other `ha-*` skill.** It defines how to connect and the conventions every command follows.
 
 > Source of truth for flags is always `hass-cli <command> --help`. This file carries the connection model, transport routing, and error recovery that `--help` cannot.
+
+## Quick control (most requests)
+
+To turn a device that already exists on or off, toggle it, dim it, or set a
+temperature or position, two commands are enough. Do not read other skills,
+run `service describe`, or check the state afterwards.
+
+```bash
+# 1. Find it by name and/or domain: a few rows, not the whole house
+hass-cli state list --domain light --search kitchen
+hass-cli state list --search 客厅
+
+# 2. Call the service on the entity_id from step 1
+hass-cli service call light.turn_on --arguments entity_id=light.kitchen
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":30}'
+hass-cli service call switch.turn_off --arguments entity_id=switch.porch
+hass-cli service call climate.set_temperature --data '{"entity_id":"climate.living","temperature":21}'
+hass-cli service call cover.close_cover --arguments entity_id=cover.bedroom
+```
+
+- The call prints the entities it changed: that is the confirmation. `No entity
+  changed state` means the target was already that way, which is not a failure.
+- `--search` matches the entity_id and the friendly name; every word must match.
+  No row: try one word, another language, or `--domain` alone. Several rows: use
+  the one whose name fits, or ask which one when they are equally likely.
+- The usual services: `<domain>.turn_on` / `turn_off` / `toggle` for light,
+  switch, fan and input_boolean; `climate.set_temperature` / `set_hvac_mode`;
+  `cover.open_cover` / `close_cover` / `set_cover_position`; `lock.lock` /
+  `unlock`; `media_player.media_play_pause` / `volume_set`; `scene.turn_on`;
+  `script.turn_on`. The domain skills hold the rest.
+- Reach for the sections below only when a command fails (connection, auth,
+  quoting) or the request is more than direct control.
 
 ## Connection
 

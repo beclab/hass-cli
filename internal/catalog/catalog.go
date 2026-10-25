@@ -10,6 +10,10 @@ type Field struct {
 	Required    bool            `json:"required,omitempty"`
 	Example     json.RawMessage `json:"example,omitempty"`
 	Selector    json.RawMessage `json:"selector,omitempty"`
+	// Fields holds a section's own fields: Home Assistant groups the less common
+	// ones (light.turn_on's color_name, hs_color, xy_color...) under sections
+	// such as advanced_fields, which are not fields themselves.
+	Fields map[string]Field `json:"fields,omitempty"`
 }
 
 // Service describes one service within a domain.

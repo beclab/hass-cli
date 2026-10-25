@@ -178,22 +178,31 @@ func renderCallResult(f *cmdutil.Factory, raw json.RawMessage) error {
 	return renderRawCols(f, raw, colsState)
 }
 
-// fieldRows lists a service's fields one per row, sorted, for table output.
+// fieldRows lists a service's fields one per row, sorted, for table output. A
+// section's fields are listed in its place, so every name shown can be sent.
 func fieldRows(svc catalog.Service) []map[string]any {
-	names := make([]string, 0, len(svc.Fields))
-	for name := range svc.Fields {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	rows := make([]map[string]any, 0, len(names))
-	for _, name := range names {
-		field := svc.Fields[name]
-		example := ""
-		if len(field.Example) > 0 {
-			example = string(field.Example)
+	rows := []map[string]any{}
+	var add func(fields map[string]catalog.Field)
+	add = func(fields map[string]catalog.Field) {
+		names := make([]string, 0, len(fields))
+		for name := range fields {
+			names = append(names, name)
 		}
-		rows = append(rows, map[string]any{"field": name, "required": field.Required, "description": field.Description, "example": example})
+		sort.Strings(names)
+		for _, name := range names {
+			field := fields[name]
+			if len(field.Fields) > 0 {
+				add(field.Fields)
+				continue
+			}
+			example := ""
+			if len(field.Example) > 0 {
+				example = string(field.Example)
+			}
+			rows = append(rows, map[string]any{"field": name, "required": field.Required, "description": field.Description, "example": example})
+		}
 	}
+	add(svc.Fields)
 	return rows
 }
 

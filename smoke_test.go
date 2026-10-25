@@ -46,7 +46,8 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 						"name":        "Turn on",
 						"description": "Turn a light on",
 						"fields": map[string]any{
-							"brightness_pct": map[string]any{"description": "Brightness %"},
+							"brightness_pct":  map[string]any{"description": "Brightness %"},
+							"advanced_fields": map[string]any{"collapsed": true, "fields": map[string]any{"color_name": map[string]any{"example": "red"}}},
 						},
 					},
 				},
@@ -262,6 +263,7 @@ func TestSmoke(t *testing.T) {
 		{"state-list-ndjson", []string{"-o", "ndjson", "state", "list"}, "{\"entity_id\":\"sun.sun\""},
 		{"service-call-comma-pairs", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen,brightness_pct=40"}, "light.kitchen"},
 		{"service-describe-table", []string{"service", "describe", "light.turn_on"}, "brightness_pct"},
+		{"service-describe-section-fields", []string{"service", "describe", "light.turn_on"}, "color_name"},
 		{"service-list-domain", []string{"service", "list", "light"}, "light.turn_on"},
 		{"state-get-table-attributes", []string{"state", "get", "light.kitchen"}, "attributes.supported_color_modes  [\"color_temp\",\"xy\"]"},
 	}

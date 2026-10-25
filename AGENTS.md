@@ -32,7 +32,9 @@ Working rules for this repository (the public release directory for hass-cli).
   `SupervisorToken` is parsed but reserved (not yet wired); the Supervisor
   proxy path uses `HASS_TOKEN`.
 - `internal/output/` — table/json/yaml/ndjson rendering with `--columns`/`--sort-by`.
-- `skills/` — agent skills (`ha-shared` first), embedded into the binary.
+- `skills/` — agent skills, embedded into the binary. Each control skill carries
+  its own two-command quick control; `ha-shared` holds connection and error
+  recovery. Descriptions are one short sentence: every agent request lists them.
 
 ## Conventions
 

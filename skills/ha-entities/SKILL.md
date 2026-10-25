@@ -1,7 +1,7 @@
 ---
 name: ha-entities
-version: 0.2.0
-description: "Read and control the general Home Assistant entity domains with hass-cli that don't have a dedicated skill: sensor, binary_sensor, number, select, text, button, update, weather, vacuum, alarm_control_panel, siren, camera, todo lists, and calendars. Use for 'read this sensor', 'set this number/select/text helper-style entity', 'start the vacuum', 'arm the alarm', 'what's on my to-do list', 'next calendar event' requests."
+version: 0.3.0
+description: "Read or control entity domains without their own skill: sensors, buttons, numbers, selects, text, vacuums, weather, updates and the like."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-entities
 
-The long tail of entity domains. **Prerequisites:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md), [`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+The long tail of entity domains. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 > Read with `state get`; control with `service call`. Find candidates with
 > `hass-cli state list --domain <domain>`.

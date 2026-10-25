@@ -1,7 +1,7 @@
 ---
 name: ha-lovelace
-version: 0.1.0
-description: "Read and write Home Assistant Lovelace dashboards with hass-cli: list dashboards, create/update/delete storage-mode dashboards, get and save a dashboard's full view/card config (YAML or JSON), and manage custom JS/CSS resources. Use for 'show my dashboards', 'edit the dashboard config', 'add a card', 'create a new dashboard', 'export/import a dashboard' requests."
+version: 0.2.0
+description: "List, create and edit Lovelace dashboards and their view and card configuration."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -11,7 +11,7 @@ metadata:
 # ha-lovelace
 
 Dashboards, their stored view/card config, and custom resources. All WebSocket.
-**Prerequisite:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Mental model
 

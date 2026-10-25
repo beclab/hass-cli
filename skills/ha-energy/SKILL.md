@@ -1,7 +1,7 @@
 ---
 name: ha-energy
-version: 0.1.0
-description: "Inspect and configure Home Assistant's Energy dashboard with hass-cli: read energy preferences (grid/solar/battery/gas/water sources and devices), validate the energy config, and pull consumption statistics. Use for 'show my energy setup', 'how much solar did I produce', 'what's using the most power' questions. Energy data is WebSocket + statistics-based."
+version: 0.2.0
+description: "Read and configure the Energy dashboard and pull energy statistics."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-energy
 
-The Energy dashboard config and statistics. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+The Energy dashboard config and statistics. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Read the energy setup
 

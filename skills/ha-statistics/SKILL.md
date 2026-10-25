@@ -1,7 +1,7 @@
 ---
 name: ha-statistics
-version: 0.1.0
-description: "Query Home Assistant's recorder long-term statistics with hass-cli: list which statistic ids exist, read their metadata (unit, source, has_sum/has_mean), and pull aggregated values (sum/mean/min/max) over a time period and bucket. Use for 'how much energy/water/gas over time', 'trend of this sensor', 'monthly totals', or as the data source for consumption/audit analyses. Distinct from instantaneous state history."
+version: 0.2.0
+description: "Query recorder long-term statistics: list statistic ids, read their metadata and aggregated values."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -11,8 +11,7 @@ metadata:
 # ha-statistics
 
 Recorder long-term statistics — the aggregated, downsampled history HA keeps
-for `sensor`s with `state_class` (and external stats). **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+for `sensor`s with `state_class` (and external stats). Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Statistics vs. history
 

@@ -1,7 +1,7 @@
 ---
 name: ha-workflow-automation-builder
-version: 0.1.0
-description: "Playbook for generating a Home Assistant automation from a natural-language request with hass-cli. Use when the user says 'create an automation that...', 'when X happens do Y', 'automate my lights', or wants a new automation/script/scene built and installed. Orchestrates: gather context -> generate config -> save -> reload -> verify."
+version: 0.2.0
+description: "Playbook for turning a natural-language request into a working Home Assistant automation."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,9 +10,8 @@ metadata:
 
 # ha-workflow-automation-builder
 
-A repeatable recipe to turn a request into a working automation. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md); see also
-[`../ha-automation/SKILL.md`](../ha-automation/SKILL.md).
+A repeatable recipe to turn a request into a working automation; see also
+[`../ha-automation/SKILL.md`](../ha-automation/SKILL.md). Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Steps
 

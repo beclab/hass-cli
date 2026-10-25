@@ -1,7 +1,7 @@
 ---
 name: ha-automation
-version: 0.1.0
-description: "Create, edit, and run Home Assistant automations, scripts, and scenes with hass-cli. Use to list/get/save/delete automations, reload them, trigger them manually, or build a new automation from triggers/conditions/actions. Config writes go through the REST config editor; reload/trigger go through services."
+version: 0.2.0
+description: "List, create, edit, run and delete automations, scripts and scenes."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-automation
 
-Manage automations, scripts, and scenes. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md). To author a NEW automation from
+Manage automations, scripts, and scenes. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md). To author a NEW automation from
 a request, follow [`../ha-workflow-automation-builder/SKILL.md`](../ha-workflow-automation-builder/SKILL.md).
 
 ## Commands

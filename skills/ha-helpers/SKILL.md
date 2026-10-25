@@ -1,7 +1,7 @@
 ---
 name: ha-helpers
-version: 0.1.0
-description: "Create and manage Home Assistant helper entities with hass-cli: input_boolean, input_button, input_number, input_select, input_text, input_datetime, counter, timer, and schedule. Use to add a toggle/number/dropdown/text helper, a counter or timer, or a weekly schedule, and to list/rename/delete them. Creating a helper is a config operation (WebSocket), distinct from operating it (service call)."
+version: 0.2.0
+description: "Create and manage helper entities: input_boolean, input_number, input_select, input_text, input_datetime, counters, timers and schedules."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -11,7 +11,7 @@ metadata:
 # ha-helpers
 
 Manage helper entities — the user-defined inputs automations read and write.
-**Prerequisite:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 > Two different things, do not confuse them:
 > - **Manage the helper** (create/rename/delete the entity itself) → `hass-cli helper ...` (this skill, WebSocket-only).

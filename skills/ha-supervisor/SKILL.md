@@ -1,7 +1,7 @@
 ---
 name: ha-supervisor
-version: 0.1.0
-description: "Manage Home Assistant add-ons and the Supervisor/OS layer with hass-cli. Use to list/install/uninstall/update/start/stop/restart add-ons, browse the add-on store, read add-on logs, or check Core/Supervisor/OS info. Works through Core's supervisor/api WebSocket proxy with a regular admin token (no separate supervisor token needed)."
+version: 0.2.0
+description: "Manage add-ons and the Supervisor/OS layer on Home Assistant OS or Supervised installs."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-supervisor
 
-Add-ons and the Supervisor/OS layer. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Add-ons and the Supervisor/OS layer. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 > Availability: these only work on **Supervised / HA OS** installs. On a Core
 > (Container) install there is no Supervisor and the commands fail fast with

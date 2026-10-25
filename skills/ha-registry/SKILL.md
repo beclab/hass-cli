@@ -1,7 +1,7 @@
 ---
 name: ha-registry
-version: 0.1.0
-description: "Manage Home Assistant areas, devices, entities, floors, and labels with hass-cli. Use to list/create/rename/delete areas, assign devices or entities to areas, organize with floors and labels, rename entity_ids, or audit the registry. These are WebSocket-only operations (config/*_registry/*)."
+version: 0.2.0
+description: "Organise areas, floors, labels, devices and entities: list, create, rename, assign and delete."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-registry
 
-Organize the home: areas, devices, entities, floors, labels. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Organize the home: areas, devices, entities, floors, labels. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 > All registry operations are WebSocket-only. hass-cli routes them
 > automatically; you do not pick the transport.

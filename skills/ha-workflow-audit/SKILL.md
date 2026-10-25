@@ -1,7 +1,7 @@
 ---
 name: ha-workflow-audit
-version: 0.1.0
-description: "Playbook for auditing a Home Assistant instance for tech debt with hass-cli: dead/unavailable entities, duplicate entities, broken automations referencing missing entities, and unused automations. Use when the user asks to 'clean up', 'find broken/unused automations', 'find dead entities', or 'audit my setup'. These are derived analyses (not native HA features) computed from native data."
+version: 0.2.0
+description: "Playbook for auditing a Home Assistant instance: unavailable or duplicate entities and broken automations."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,9 +10,8 @@ metadata:
 
 # ha-workflow-audit
 
-Derive tech-debt reports from native data. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md); data sources in
-[`../ha-system/SKILL.md`](../ha-system/SKILL.md).
+Derive tech-debt reports from native data; the data sources are in
+[`../ha-system/SKILL.md`](../ha-system/SKILL.md). Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 > Home Assistant does not ship these audits. Compute them client-side from
 > `state list`, the entity registry, and `logbook`/`history`. Always start with

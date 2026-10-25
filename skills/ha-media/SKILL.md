@@ -1,7 +1,7 @@
 ---
 name: ha-media
-version: 0.1.0
-description: "Control Home Assistant media players with hass-cli: play/pause/stop, next/previous track, set volume, mute, select source, and play media. Use for 'pause the TV', 'set volume to 30%', 'play music in the kitchen', 'switch input to HDMI2' requests. All control goes through service call."
+version: 0.2.0
+description: "Play, pause, skip, set volume, mute or switch source on media players such as speakers and TVs."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,25 @@ metadata:
 
 # ha-media
 
-Media players (speakers, TVs, receivers). **Prerequisites:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md), [`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+Media players (speakers, TVs, receivers). Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+
+## Quick control (most requests)
+
+Two commands turn an existing device on or off or set it. Do not load other
+skills, run `service describe`, or check the state afterwards.
+
+```bash
+# 1. Find it by name: a few rows, not the whole house
+hass-cli state list --domain media_player --search tv
+
+# 2. Call the service on the entity_id from step 1
+hass-cli service call media_player.media_play_pause --arguments entity_id=media_player.tv
+hass-cli service call media_player.volume_set --data '{"entity_id":"media_player.tv","volume_level":0.3}'
+```
+
+The call prints the entities it changed: that is the confirmation. `No entity
+changed state` means it was already that way. No row: search one word, another
+language, or the domain alone. Several equally likely rows: ask which one.
 
 ## Transport
 

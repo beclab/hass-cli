@@ -1,7 +1,7 @@
 ---
 name: ha-assist
-version: 0.1.0
-description: "Use Home Assistant's Assist voice/conversation layer with hass-cli: send a natural-language command to the conversation agent, list conversation agents and assist pipelines, list STT/TTS engines and voices, and speak text on a media player. Use for 'tell Assist to turn off the lights', 'what voice assistants are configured', 'run a sentence through HA' requests."
+version: 0.2.0
+description: "Manage Home Assistant's own Assist: send text to its conversation agent, list agents, pipelines and STT/TTS engines. Not for direct device control."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,13 +10,13 @@ metadata:
 
 # ha-assist
 
-Conversation, pipelines, STT/TTS. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Conversation, pipelines, STT/TTS. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Send a natural-language command
 
-The conversation agent maps a sentence to actions — a quick way to control HA
-by intent instead of crafting a `service call`:
+Home Assistant's own conversation agent maps a sentence to actions. Use it when
+the user asks for Assist itself; for direct device control the domain skills'
+`service call` is faster and reports what changed:
 
 ```bash
 hass-cli raw ws conversation/process --data '{"text":"turn off the kitchen lights"}' -o json

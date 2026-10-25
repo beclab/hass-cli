@@ -1,7 +1,7 @@
 ---
 name: ha-integrations
-version: 0.1.0
-description: "Manage Home Assistant integrations (config entries) and device discovery with hass-cli: list integrations and their state, reload, enable/disable, delete, update entry options, and inspect discovered/in-progress config flows. Use for 'list my integrations', 'reload the X integration', 'why is this integration failing', 'disable this entry', 'what was discovered on my network' requests."
+version: 0.2.0
+description: "List, reload, enable, disable and delete integrations, change their options, and handle device discovery."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-integrations
 
-Config entries are the runtime instances of integrations. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Config entries are the runtime instances of integrations. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 > List/get/update/enable/disable go over WebSocket; reload and delete are
 > REST-only config endpoints. The CLI routes both for you.

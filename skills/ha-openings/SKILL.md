@@ -1,7 +1,7 @@
 ---
 name: ha-openings
-version: 0.1.0
-description: "Control Home Assistant covers, locks, valves, garage doors, and gates with hass-cli: open/close/stop covers, set position and tilt, lock/unlock, open/close valves. Use for 'open the blinds', 'close the garage', 'set shades to 50%', 'lock the front door' requests. All control goes through service call."
+version: 0.2.0
+description: "Open, close or position covers, blinds, garage doors and gates; lock and unlock locks; open and close valves."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,26 @@ metadata:
 
 # ha-openings
 
-Covers (blinds/shades/garage/gate), locks, valves. **Prerequisites:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md), [`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+Covers (blinds/shades/garage/gate), locks, valves. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+
+## Quick control (most requests)
+
+Two commands turn an existing device on or off or set it. Do not load other
+skills, run `service describe`, or check the state afterwards.
+
+```bash
+# 1. Find it by name: a few rows, not the whole house
+hass-cli state list --domain cover --search bedroom
+
+# 2. Call the service on the entity_id from step 1
+hass-cli service call cover.close_cover --arguments entity_id=cover.bedroom
+hass-cli service call cover.open_cover --arguments entity_id=cover.bedroom
+hass-cli service call lock.lock --arguments entity_id=lock.front_door
+```
+
+The call prints the entities it changed: that is the confirmation. `No entity
+changed state` means it was already that way. No row: search one word, another
+language, or the domain alone. Several equally likely rows: ask which one.
 
 ## Covers (`cover.*`)
 

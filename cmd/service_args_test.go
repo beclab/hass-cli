@@ -48,3 +48,23 @@ func TestExplainCallError(t *testing.T) {
 		t.Fatal("non-400 errors must pass through")
 	}
 }
+
+func TestUnknownFlagHint(t *testing.T) {
+	cases := []struct {
+		err  string
+		args []string
+		want string
+	}{
+		{"unknown flag: --color_temp", []string{"service", "call", "light.turn_on", "--color_temp=6500"}, "--arguments color_temp_kelvin=6500"},
+		{"unknown flag: --color_temp", []string{"service", "call", "light.turn_on", "--color_temp", "400"}, "--arguments color_temp_kelvin=2500"},
+		{"unknown flag: --brightness-pct", []string{"--brightness-pct", "40"}, "--arguments brightness_pct=40"},
+		{"unknown flag: --rgb_color", nil, "--arguments rgb_color=<value>"},
+		{"unknown shorthand flag: 'x' in -x", nil, ""},
+	}
+	for _, c := range cases {
+		got := unknownFlagHint(errors.New(c.err), c.args)
+		if c.want == "" && got != "" || !strings.Contains(got, c.want) {
+			t.Errorf("unknownFlagHint(%q, %q) = %q, want %q", c.err, c.args, got, c.want)
+		}
+	}
+}

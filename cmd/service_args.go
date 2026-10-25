@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/beclab/hass-cli/internal/catalog"
 	"github.com/beclab/hass-cli/internal/client"
+	"github.com/spf13/cobra"
 )
 
 // splitArguments turns one --arguments value into its key=value pairs. Agents
@@ -179,15 +181,26 @@ func explainCallError(err error, service string) error {
 // targetKeys are the ways a service call can name what it acts on.
 var targetKeys = []string{"entity_id", "device_id", "area_id", "floor_id", "label_id", "target"}
 
-// checkTarget fails before the call when the service acts on targets and the
-// data names none: Home Assistant answers that with a bare "400: Bad Request".
-// Whether a service takes a target comes from the live service catalog.
-func checkTarget(ctx context.Context, c *client.Client, domain, service string, data map[string]any) error {
-	for _, key := range targetKeys {
-		if _, ok := data[key]; ok {
-			return nil
-		}
-	}
+// fieldRenames maps field names agents guess to the field Home Assistant takes.
+// color_temp (mireds) and kelvin were removed from light.turn_on; a call that
+// still sends them gets a bare "400: Bad Request".
+var fieldRenames = map[string]string{
+	"color_temp":         "color_temp_kelvin",
+	"colour_temp":        "color_temp_kelvin",
+	"kelvin":             "color_temp_kelvin",
+	"color_temperature":  "color_temp_kelvin",
+	"brightness_percent": "brightness_pct",
+	"color":              "color_name",
+	"colour":             "color_name",
+	"colour_name":        "color_name",
+}
+
+// checkService fails before the call when the data leaves out a target the
+// service needs, or names a field the service does not have: Home Assistant
+// answers both with a bare "400: Bad Request". The service's targets and fields
+// come from the live service catalog; a service that lists no fields is not
+// checked for them, since scripts take any variables.
+func checkService(ctx context.Context, c *client.Client, domain, service string, data map[string]any) error {
 	raw, err := c.Services(ctx)
 	if err != nil {
 		return nil
@@ -197,8 +210,154 @@ func checkTarget(ctx context.Context, c *client.Client, domain, service string, 
 		return nil
 	}
 	svc, ok := cat.Lookup(domain, service)
-	if !ok || len(svc.Target) == 0 || string(svc.Target) == "null" {
+	if !ok {
+		return nil
+	}
+	if err := checkTarget(domain, service, svc, data); err != nil {
+		return err
+	}
+	return checkFields(domain+"."+service, svc, data)
+}
+
+// checkTarget fails when the service acts on targets and the data names none.
+func checkTarget(domain, service string, svc catalog.Service, data map[string]any) error {
+	for _, key := range targetKeys {
+		if _, ok := data[key]; ok {
+			return nil
+		}
+	}
+	if len(svc.Target) == 0 || string(svc.Target) == "null" {
 		return nil
 	}
 	return fmt.Errorf("%s.%s needs a target: add --entity %s.<object_id> (find it with: hass-cli state list --domain %s --search <name>)", domain, service, domain, domain)
+}
+
+// checkFields fails on the first data key that is neither a target nor one of
+// the service's fields, naming the field meant where it can tell.
+func checkFields(name string, svc catalog.Service, data map[string]any) error {
+	fields := fieldNames(svc.Fields)
+	if len(fields) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if fields[key] || slices.Contains(targetKeys, key) {
+			continue
+		}
+		msg := fmt.Sprintf("%s has no field %q", name, key)
+		if meant := meantField(key, fields); meant != "" {
+			msg += "; use " + meant
+			if meant == "color_temp_kelvin" {
+				msg += " (kelvin: about 2700 warm white, 4000 neutral, 6500 cool white)"
+				if kelvin, ok := mireds(data[key]); ok {
+					msg += fmt.Sprintf(", e.g. --arguments color_temp_kelvin=%d", kelvin)
+				}
+			}
+		}
+		return errors.New(msg + fmt.Sprintf(". Fields: hass-cli service describe %s", name))
+	}
+	return nil
+}
+
+// fieldNames lists a service's fields, a section's fields in its place.
+func fieldNames(fields map[string]catalog.Field) map[string]bool {
+	names := map[string]bool{}
+	for name, field := range fields {
+		if len(field.Fields) > 0 {
+			for inner := range fieldNames(field.Fields) {
+				names[inner] = true
+			}
+			continue
+		}
+		names[name] = true
+	}
+	return names
+}
+
+// meantField is the field a wrong name stands for: a known rename, the same
+// name with dashes, or the one field that contains it or is contained in it.
+func meantField(key string, fields map[string]bool) string {
+	if renamed, ok := fieldRenames[key]; ok && fields[renamed] {
+		return renamed
+	}
+	if underscored := strings.ReplaceAll(key, "-", "_"); fields[underscored] {
+		return underscored
+	}
+	var near []string
+	for field := range fields {
+		if strings.Contains(field, key) || strings.Contains(key, field) {
+			near = append(near, field)
+		}
+	}
+	if len(near) == 1 {
+		return near[0]
+	}
+	return ""
+}
+
+// mireds reads an old color_temp value as kelvin: values below 1000 are mireds.
+func mireds(v any) (int, bool) {
+	var n float64
+	switch x := v.(type) {
+	case int64:
+		n = float64(x)
+	case float64:
+		n = x
+	default:
+		return 0, false
+	}
+	switch {
+	case n >= 1000:
+		return int(n), true
+	case n > 0:
+		return int(1e6/n/100+0.5) * 100, true
+	}
+	return 0, false
+}
+
+// unknownFlagHint answers an unknown --name flag on service call with the
+// --arguments form of the field it most likely means.
+func unknownFlagHint(err error, args []string) string {
+	flag, ok := strings.CutPrefix(err.Error(), "unknown flag: --")
+	if !ok {
+		return ""
+	}
+	field := strings.ReplaceAll(flag, "-", "_")
+	if renamed, ok := fieldRenames[field]; ok {
+		field = renamed
+	}
+	value := "<value>"
+	for i, arg := range args {
+		if v, ok := strings.CutPrefix(arg, "--"+flag+"="); ok {
+			value = v
+		} else if arg == "--"+flag && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			value = args[i+1]
+		}
+	}
+	if field == "color_temp_kelvin" {
+		if kelvin, ok := mireds(coerceValue(value)); ok {
+			value = fmt.Sprint(kelvin)
+		}
+	}
+	return fmt.Sprintf("\n--%s is not a flag; give a service field with --arguments: --arguments %s=%s", flag, field, value)
+}
+
+// callArgs takes the service, then any entity ids the call should act on.
+func callArgs(_ *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return errors.New("service call needs <domain.service>, e.g. hass-cli service call light.turn_on --entity light.kitchen")
+	}
+	for _, arg := range args[1:] {
+		if strings.Contains(arg, "=") {
+			return fmt.Errorf("%q is data, not an entity: pass it as --arguments %s", arg, arg)
+		}
+		if !entityIDPattern.MatchString(arg) {
+			return fmt.Errorf("unexpected argument %q: service call takes <domain.service>, then entity ids (domain.object_id)", arg)
+		}
+	}
+	return nil
 }

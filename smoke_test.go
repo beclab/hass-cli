@@ -47,8 +47,9 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 						"description": "Turn a light on",
 						"target":      map[string]any{"entity": []any{map[string]any{"domain": []string{"light"}}}},
 						"fields": map[string]any{
-							"brightness_pct":  map[string]any{"description": "Brightness %"},
-							"advanced_fields": map[string]any{"collapsed": true, "fields": map[string]any{"color_name": map[string]any{"example": "red"}}},
+							"brightness_pct":    map[string]any{"description": "Brightness %"},
+							"color_temp_kelvin": map[string]any{"description": "Colour temperature in kelvin"},
+							"advanced_fields":   map[string]any{"collapsed": true, "fields": map[string]any{"color_name": map[string]any{"example": "red"}}},
 						},
 					},
 				},
@@ -264,6 +265,8 @@ func TestSmoke(t *testing.T) {
 		{"state-list-ndjson", []string{"-o", "ndjson", "state", "list"}, "{\"entity_id\":\"sun.sun\""},
 		{"service-call-entity_id-flag", []string{"service", "call", "light.turn_on", "--entity_id=light.kitchen"}, "light.kitchen"},
 		{"service-call-entity-id-flag", []string{"service", "call", "light.turn_on", "--entity-id", "light.kitchen"}, "light.kitchen"},
+		{"service-call-positional-entity", []string{"service", "call", "light.turn_on", "light.kitchen", "--arguments", "color_temp_kelvin=6500"}, "light.kitchen"},
+		{"service-call-section-field", []string{"service", "call", "light.turn_on", "--entity", "light.kitchen", "--arguments", "color_name=white"}, "light.kitchen"},
 		{"service-call-comma-pairs", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen,brightness_pct=40"}, "light.kitchen"},
 		{"service-describe-table", []string{"service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"service-describe-section-fields", []string{"service", "describe", "light.turn_on"}, "color_name"},
@@ -415,12 +418,18 @@ func TestServiceCallEntityChecks(t *testing.T) {
 	t.Setenv("HASS_TOKEN", "test-token")
 
 	cases := map[string][]string{
-		"did you mean light.kitchen (Kitchen Ceiling)": {"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen_lamp"},
-		"is not an entity id":                          {"service", "call", "light.turn_on", "--data", `{"entity_id":"Kitchen light"}`},
-		"light.turn_on needs a target: add --entity":   {"service", "call", "light.turn_on"},
-		"service call takes the target and data as":    {"service", "call", "light.turn_on", "--brightness", "40"},
-		"hass-cli service call light.turn_off":         {"light.turn_off", "light.kitchen"},
-		"did you mean state":                           {"stat", "list"},
+		"did you mean light.kitchen (Kitchen Ceiling)":                   {"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen_lamp"},
+		"is not an entity id":                                            {"service", "call", "light.turn_on", "--data", `{"entity_id":"Kitchen light"}`},
+		"light.turn_on needs a target: add --entity":                     {"service", "call", "light.turn_on"},
+		"service call takes the target and data as":                      {"service", "call", "light.turn_on", "--brightness", "40"},
+		"hass-cli service call light.turn_off":                           {"light.turn_off", "light.kitchen"},
+		"did you mean state":                                             {"stat", "list"},
+		`light.turn_on has no field "color_temp"; use color_temp_kelvin`: {"service", "call", "light.turn_on", "--entity", "light.kitchen", "--arguments", "color_temp=6500"},
+		"e.g. --arguments color_temp_kelvin=2500":                        {"service", "call", "light.turn_on", "--data", `{"entity_id":"light.kitchen","color_temp":400}`},
+		`light.turn_on has no field "colour"; use color_name`:            {"service", "call", "light.turn_on", "--entity", "light.kitchen", "--arguments", "colour=white"},
+		"is data, not an entity: pass it as --arguments color_temp=6500": {"service", "call", "light.turn_on", "light.kitchen", "color_temp=6500"},
+		`unexpected argument "kitchen"`:                                  {"service", "call", "light.turn_on", "kitchen"},
+		"entity light.kitchen_lamp not found":                            {"service", "call", "light.turn_on", "light.kitchen_lamp"},
 	}
 	for want, args := range cases {
 		t.Run(want, func(t *testing.T) {

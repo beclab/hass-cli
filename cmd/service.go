@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -52,9 +53,9 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	var dataJSON string
 	var arguments, entities []string
 	callCmd := &cobra.Command{
-		Use:   "call <domain.service>",
+		Use:   "call <domain.service> [entity_id...]",
 		Short: "Call a service, e.g. light.turn_on --arguments entity_id=light.kitchen",
-		Args:  cobra.ExactArgs(1),
+		Args:  callArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			domain, service, ok := strings.Cut(args[0], ".")
 			if !ok {
@@ -76,6 +77,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 					data[strings.TrimSpace(k)] = coerceValue(strings.TrimSpace(v))
 				}
 			}
+			entities = append(entities, args[1:]...)
 			if len(entities) > 0 {
 				data["entity_id"] = strings.Join(entities, ",")
 			}
@@ -87,7 +89,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if err := checkEntities(cmd.Context(), c, entityIDsIn(data)); err != nil {
 				return err
 			}
-			if err := checkTarget(cmd.Context(), c, domain, service, data); err != nil {
+			if err := checkService(cmd.Context(), c, domain, service, data); err != nil {
 				return err
 			}
 			raw, err := c.CallService(cmd.Context(), domain, service, data)
@@ -109,7 +111,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 		return pflag.NormalizedName(name)
 	})
 	callCmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
-		return fmt.Errorf("%w\nservice call takes the target and data as: --entity light.kitchen, --arguments key=value, or --data '{\"entity_id\":\"light.kitchen\",...}'", err)
+		return fmt.Errorf("%w%s\nservice call takes the target and data as: --entity light.kitchen, --arguments key=value, or --data '{\"entity_id\":\"light.kitchen\",...}'", err, unknownFlagHint(err, os.Args[1:]))
 	})
 	cmd.AddCommand(callCmd)
 

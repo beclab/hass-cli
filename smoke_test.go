@@ -64,6 +64,10 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 			})
 		case strings.HasPrefix(r.URL.Path, "/api/states/"):
 			id := strings.TrimPrefix(r.URL.Path, "/api/states/")
+			if id == "light.kitchen" {
+				writeJSON(w, map[string]any{"entity_id": id, "state": "on", "attributes": map[string]any{"friendly_name": "Kitchen Ceiling", "brightness": 255, "supported_color_modes": []string{"color_temp", "xy"}}})
+				return
+			}
 			writeJSON(w, map[string]any{"entity_id": id, "state": "on"})
 		case r.URL.Path == "/api/services/light/turn_on":
 			// Home Assistant answers with the states the call changed: none when the light
@@ -256,6 +260,10 @@ func TestSmoke(t *testing.T) {
 		{"service-call-unchanged", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.living_room"}, "No entity changed state"},
 		{"state-list-yaml", []string{"-o", "yaml", "state", "list"}, "entity_id: light.kitchen"},
 		{"state-list-ndjson", []string{"-o", "ndjson", "state", "list"}, "{\"entity_id\":\"sun.sun\""},
+		{"service-call-comma-pairs", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen,brightness_pct=40"}, "light.kitchen"},
+		{"service-describe-table", []string{"service", "describe", "light.turn_on"}, "brightness_pct"},
+		{"service-list-domain", []string{"service", "list", "light"}, "light.turn_on"},
+		{"state-get-table-attributes", []string{"state", "get", "light.kitchen"}, "attributes.supported_color_modes  [\"color_temp\",\"xy\"]"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -391,5 +399,30 @@ func TestStateFilters(t *testing.T) {
 	// The table of a changed call is the compact one, not the whole state object.
 	if out := run(t, "service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen"); strings.Contains(out, "brightness") {
 		t.Errorf("service call table shows attributes: %s", out)
+	}
+}
+
+// TestServiceCallEntityChecks checks that a call on a malformed or missing entity
+// fails before reaching Home Assistant, naming candidates for a missing one.
+func TestServiceCallEntityChecks(t *testing.T) {
+	srv := mockHA(t)
+	t.Setenv("HASS_SERVER", srv.URL)
+	t.Setenv("HASS_TOKEN", "test-token")
+
+	cases := map[string][]string{
+		"did you mean light.kitchen (Kitchen Ceiling)": {"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen_lamp"},
+		"is not an entity id":                          {"service", "call", "light.turn_on", "--data", `{"entity_id":"Kitchen light"}`},
+	}
+	for want, args := range cases {
+		t.Run(want, func(t *testing.T) {
+			root := cmd.NewRootCommand()
+			root.SetArgs(args)
+			root.SetOut(io.Discard)
+			root.SetErr(io.Discard)
+			err := root.Execute()
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Fatalf("want error containing %q, got %v", want, err)
+			}
+		})
 	}
 }

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"sort"
 	"strings"
 
 	"github.com/beclab/hass-cli/internal/cmdutil"
@@ -58,6 +59,11 @@ func newStateCmd(f *cmdutil.Factory) *cobra.Command {
 			raw, err := c.State(cmd.Context(), args[0])
 			if err != nil {
 				return err
+			}
+			if f.Output == "" || f.Output == "table" {
+				// One state is one object; as a table it showed only its timestamps and hid
+				// the attributes (brightness, colour, supported modes) a caller asked it for.
+				return renderValueCols(f, stateRows(raw), "KEY=key,VALUE=value")
 			}
 			return renderRaw(f, raw)
 		},
@@ -138,4 +144,42 @@ func filterStates(raw json.RawMessage, domains []string, search string) (json.Ra
 		}
 	}
 	return json.Marshal(kept)
+}
+
+// stateRows lays one entity state out as key/value rows: id, state and last
+// change first, then every attribute in name order.
+func stateRows(raw json.RawMessage) []map[string]any {
+	var st struct {
+		EntityID    string         `json:"entity_id"`
+		State       string         `json:"state"`
+		LastChanged string         `json:"last_changed"`
+		Attributes  map[string]any `json:"attributes"`
+	}
+	_ = json.Unmarshal(raw, &st)
+	rows := []map[string]any{
+		{"key": "entity_id", "value": st.EntityID},
+		{"key": "state", "value": st.State},
+		{"key": "last_changed", "value": st.LastChanged},
+	}
+	names := make([]string, 0, len(st.Attributes))
+	for name := range st.Attributes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		value := st.Attributes[name]
+		if b, err := json.Marshal(value); err == nil && !isScalar(value) {
+			value = string(b)
+		}
+		rows = append(rows, map[string]any{"key": "attributes." + name, "value": value})
+	}
+	return rows
+}
+
+func isScalar(v any) bool {
+	switch v.(type) {
+	case nil, string, bool, float64, int, int64:
+		return true
+	}
+	return false
 }

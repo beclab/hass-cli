@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/beclab/hass-cli/internal/catalog"
@@ -20,8 +21,10 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "list",
-		Short: "List available services (domain -> services -> fields)",
+		Use:   "list [domain...]",
+		Short: "List available services (domain -> services -> fields), optionally only some domains",
+		Example: `  hass-cli service list light
+  hass-cli service list light switch -o json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()
 			if err != nil {
@@ -31,6 +34,14 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			raw, err := c.Services(cmd.Context())
 			if err != nil {
 				return err
+			}
+			if len(args) > 0 {
+				if raw, err = filterServiceDomains(raw, args); err != nil {
+					return err
+				}
+			}
+			if f.Output == "" || f.Output == "table" {
+				return renderValueCols(f, serviceRows(raw), "SERVICE=service,DESCRIPTION=description")
 			}
 			return renderRaw(f, raw)
 		},
@@ -54,27 +65,32 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if data == nil {
 				data = map[string]any{}
 			}
-			for _, kv := range arguments {
-				k, v, ok := strings.Cut(kv, "=")
-				if !ok {
-					return fmt.Errorf("--arguments must be key=value, got %q", kv)
+			for _, arg := range arguments {
+				for _, kv := range splitArguments(arg) {
+					k, v, ok := strings.Cut(kv, "=")
+					if !ok {
+						return fmt.Errorf("--arguments must be key=value, got %q", kv)
+					}
+					data[strings.TrimSpace(k)] = coerceValue(strings.TrimSpace(v))
 				}
-				data[k] = coerceValue(v)
 			}
 			c, err := f.Client()
 			if err != nil {
 				return err
 			}
 			defer c.Close()
+			if err := checkEntities(cmd.Context(), c, entityIDsIn(data)); err != nil {
+				return err
+			}
 			raw, err := c.CallService(cmd.Context(), domain, service, data)
 			if err != nil {
-				return err
+				return explainCallError(err, args[0])
 			}
 			return renderCallResult(f, raw)
 		},
 	}
 	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object (or @file.json)")
-	callCmd.Flags().StringArrayVar(&arguments, "arguments", nil, "key=value pairs (repeatable)")
+	callCmd.Flags().StringArrayVar(&arguments, "arguments", nil, "key=value pairs (repeatable; one flag may also hold several, comma-separated). Values may be numbers, true/false or JSON lists")
 	cmd.AddCommand(callCmd)
 
 	cmd.AddCommand(&cobra.Command{
@@ -102,6 +118,10 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			svc, ok := cat.Lookup(domain, service)
 			if !ok {
 				return fmt.Errorf("service %q not found", args[0])
+			}
+			if f.Output == "" || f.Output == "table" {
+				// A table needs rows; one object rendered as a table came out empty.
+				return renderValueCols(f, fieldRows(svc), "FIELD=field,REQUIRED=required,DESCRIPTION=description,EXAMPLE=example")
 			}
 			return renderValue(f, svc)
 		},
@@ -156,4 +176,64 @@ func renderCallResult(f *cmdutil.Factory, raw json.RawMessage) error {
 		return err
 	}
 	return renderRawCols(f, raw, colsState)
+}
+
+// fieldRows lists a service's fields one per row, sorted, for table output.
+func fieldRows(svc catalog.Service) []map[string]any {
+	names := make([]string, 0, len(svc.Fields))
+	for name := range svc.Fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	rows := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		field := svc.Fields[name]
+		example := ""
+		if len(field.Example) > 0 {
+			example = string(field.Example)
+		}
+		rows = append(rows, map[string]any{"field": name, "required": field.Required, "description": field.Description, "example": example})
+	}
+	return rows
+}
+
+// filterServiceDomains keeps only the named domains of a /api/services answer.
+func filterServiceDomains(raw json.RawMessage, domains []string) (json.RawMessage, error) {
+	var all []map[string]any
+	if err := json.Unmarshal(raw, &all); err != nil {
+		return raw, nil
+	}
+	want := map[string]bool{}
+	for _, d := range domains {
+		want[strings.TrimSpace(d)] = true
+	}
+	kept := []map[string]any{}
+	for _, d := range all {
+		if name, _ := d["domain"].(string); want[name] {
+			kept = append(kept, d)
+		}
+	}
+	return json.Marshal(kept)
+}
+
+// serviceRows flattens domains into one domain.service row each, for table output.
+func serviceRows(raw json.RawMessage) []map[string]any {
+	var all []struct {
+		Domain   string                    `json:"domain"`
+		Services map[string]map[string]any `json:"services"`
+	}
+	_ = json.Unmarshal(raw, &all)
+	rows := []map[string]any{}
+	for _, d := range all {
+		names := make([]string, 0, len(d.Services))
+		for name := range d.Services {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			desc, _ := d.Services[name]["description"].(string)
+			rows = append(rows, map[string]any{"service": d.Domain + "." + name, "description": desc})
+		}
+	}
+	return rows
 }

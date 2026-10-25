@@ -1,6 +1,6 @@
 ---
 name: ha-shared
-version: 0.3.0
+version: 0.3.1
 description: "Connecting hass-cli to Home Assistant (profile or token), output formats, raw REST and WebSocket access, and auth-error recovery. Load when a command cannot connect or authenticate; device control is in the domain skills."
 metadata:
   requires:
@@ -154,3 +154,14 @@ hass-cli registry area create --data '{\"name\":\"Garage\"}'
 | `authentication failed: auth_invalid` (WS) | token rejected on WS | same token as REST; regenerate |
 | `HTTP 404` on `config/automation/config/...` | `config` integration disabled | enable default_config / config integration |
 | TLS errors with self-signed cert | cert not trusted | add `--insecure` (dev only) |
+
+## Service-call errors
+
+| Symptom | Fix |
+|---|---|
+| `entity light.x not found; did you mean ...` | use one of the named entities, or `hass-cli state list --domain light --search <word>` |
+| `"..." is not an entity id` | pass the entity_id alone (`light.kitchen`), not a name or a key list |
+| `HTTP 400` | a field name or value is wrong: `hass-cli service describe <domain.service>` lists them; colours, lists and objects go in `--data '{...}'` |
+
+Two failed calls in a row on the same request: stop and say what failed rather
+than trying more variations.

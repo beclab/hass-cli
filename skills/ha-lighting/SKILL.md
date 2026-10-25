@@ -1,6 +1,6 @@
 ---
 name: ha-lighting
-version: 0.3.0
+version: 0.3.1
 description: "Turn lights, switches and fans on or off, dim them, set colour or colour temperature, set fan speed. The skill for 'turn on the light' or 'turn off the fan'."
 metadata:
   requires:
@@ -26,7 +26,17 @@ hass-cli service call light.turn_on --arguments entity_id=light.kitchen
 hass-cli service call light.turn_off --arguments entity_id=light.kitchen
 hass-cli service call switch.turn_off --arguments entity_id=switch.porch
 hass-cli service call fan.turn_on --arguments entity_id=fan.bedroom
+
+# Colour, brightness, warmth: one light.turn_on, which also switches it on
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_name":"yellow"}'
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":40}'
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_temp_kelvin":2700}'
 ```
+
+Colours by name (`yellow`, `red`, `warmwhite`...) or `rgb_color` work on every
+colour light: Home Assistant converts them to the light's own mode (`xy`, `hs`).
+Only a light whose `supported_color_modes` is just `color_temp` cannot take a
+colour; give it `color_temp_kelvin` instead.
 
 The call prints the entities it changed: that is the confirmation. `No entity
 changed state` means it was already that way. No row: search one word, another

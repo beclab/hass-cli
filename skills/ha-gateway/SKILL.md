@@ -1,7 +1,7 @@
 ---
 name: ha-gateway
-version: 0.1.0
-description: "Manage Home Assistant radio gateways and their networks with hass-cli: Zigbee (ZHA), Z-Wave JS, Matter, and Thread/OTBR. Use to pair/remove a Zigbee device, permit join, add/exclude a Z-Wave node, read network status/topology, back up a Zigbee/Z-Wave coordinator, commission a Matter device, or inspect Thread datasets. The gateway integration's own lifecycle (add/reload/delete) lives in ha-integrations; the devices it exposes live in ha-registry."
+version: 0.2.0
+description: "Manage Zigbee (ZHA), Z-Wave JS, Matter and Thread networks: pair, remove and inspect devices."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -11,7 +11,7 @@ metadata:
 # ha-gateway
 
 Radio gateways (a.k.a. coordinators / hubs / bridges) and their device networks.
-**Prerequisite:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 A gateway in Home Assistant is an **integration (config entry)** that owns a set
 of **devices**. So split the work:

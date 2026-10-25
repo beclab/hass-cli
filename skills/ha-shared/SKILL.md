@@ -1,7 +1,7 @@
 ---
 name: ha-shared
-version: 0.2.0
-description: "Shared foundation for all hass-cli skills. Read this FIRST: its first section turns a device on/off, dims it or sets it in two commands without reading any other skill. Covers connecting to a Home Assistant instance (HASS_SERVER + HASS_TOKEN long-lived token), the unified REST+WebSocket transport facade, output formats (table/json/yaml/ndjson), the raw passthrough escape hatches (raw api / raw ws), and the auth-error recovery table. Use whenever the user mentions Home Assistant, hass-cli, controlling smart-home entities, calling services, automations, or any HA REST/WebSocket API task."
+version: 0.3.0
+description: "Connecting hass-cli to Home Assistant (profile or token), output formats, raw REST and WebSocket access, and auth-error recovery. Load when a command cannot connect or authenticate; device control is in the domain skills."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,7 +10,7 @@ metadata:
 
 # ha-shared (foundation)
 
-**Read this before any other `ha-*` skill.** It defines how to connect and the conventions every command follows.
+How to connect and the conventions every `ha-*` command follows. Load it when a command cannot connect or authenticate; device control is in the domain skills, each of which carries its own quick control.
 
 > Source of truth for flags is always `hass-cli <command> --help`. This file carries the connection model, transport routing, and error recovery that `--help` cannot.
 

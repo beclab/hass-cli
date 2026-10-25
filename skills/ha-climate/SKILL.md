@@ -1,7 +1,7 @@
 ---
 name: ha-climate
-version: 0.1.0
-description: "Control Home Assistant climate, HVAC, thermostats, humidifiers, and water heaters with hass-cli: set target temperature, HVAC mode (heat/cool/auto/off), fan mode, preset, humidity, and water-heater operation. Use for 'set the thermostat to 21', 'turn on the AC', 'set to eco', 'set humidity to 45%' requests. All control goes through service call."
+version: 0.2.0
+description: "Set temperature, HVAC, fan and preset modes on thermostats, humidifiers and water heaters."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,25 @@ metadata:
 
 # ha-climate
 
-Thermostats, HVAC, humidifiers, water heaters. **Prerequisites:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md), [`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+Thermostats, HVAC, humidifiers, water heaters. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+
+## Quick control (most requests)
+
+Two commands turn an existing device on or off or set it. Do not load other
+skills, run `service describe`, or check the state afterwards.
+
+```bash
+# 1. Find it by name: a few rows, not the whole house
+hass-cli state list --domain climate --search living
+
+# 2. Call the service on the entity_id from step 1
+hass-cli service call climate.set_temperature --data '{"entity_id":"climate.living","temperature":21}'
+hass-cli service call climate.set_hvac_mode --data '{"entity_id":"climate.living","hvac_mode":"cool"}'
+```
+
+The call prints the entities it changed: that is the confirmation. `No entity
+changed state` means it was already that way. No row: search one word, another
+language, or the domain alone. Several equally likely rows: ask which one.
 
 ## Climate (`climate.*`)
 

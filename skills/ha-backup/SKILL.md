@@ -1,7 +1,7 @@
 ---
 name: ha-backup
-version: 0.1.0
-description: "Create, list, inspect, delete, and restore Home Assistant backups with hass-cli. Use for 'make a backup', 'list my backups', 'back up before I change something', 'delete old backups', 'restore this backup' requests. Backups go to configured agents (local and/or cloud/network)."
+version: 0.2.0
+description: "Create, list, inspect, delete and restore Home Assistant backups."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -11,7 +11,7 @@ metadata:
 # ha-backup
 
 Native Home Assistant backups (the Settings > System > Backups feature).
-**Prerequisite:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## List & inspect
 

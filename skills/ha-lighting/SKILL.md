@@ -1,7 +1,7 @@
 ---
 name: ha-lighting
-version: 0.2.0
-description: "Control Home Assistant lights, switches, and fans with hass-cli: turn on/off, dim, set color or color temperature, set fan speed/oscillation. Use for any 'turn on the lights', 'dim to 30%', 'make it warm white', 'set fan to medium' style request. All control goes through service call."
+version: 0.3.0
+description: "Turn lights, switches and fans on or off, dim them, set colour or colour temperature, set fan speed. The skill for 'turn on the light' or 'turn off the fan'."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,13 +10,29 @@ metadata:
 
 # ha-lighting
 
-Lights, switches, fans. Turning one on or off needs only the quick-control
-section of [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md); this skill adds
-brightness, colour, fans and group targets.
+Lights, switches, fans. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
-> No `hass-cli light` command — drive everything with `service call`. Find
-> targets with `hass-cli state list --domain light --search <name>`. The call
-> prints what it changed, so there is nothing to check afterwards.
+## Quick control (most requests)
+
+Two commands turn an existing device on or off or set it. Do not load other
+skills, run `service describe`, or check the state afterwards.
+
+```bash
+# 1. Find it by name: a few rows, not the whole house
+hass-cli state list --domain light --search kitchen
+
+# 2. Call the service on the entity_id from step 1
+hass-cli service call light.turn_on --arguments entity_id=light.kitchen
+hass-cli service call light.turn_off --arguments entity_id=light.kitchen
+hass-cli service call switch.turn_off --arguments entity_id=switch.porch
+hass-cli service call fan.turn_on --arguments entity_id=fan.bedroom
+```
+
+The call prints the entities it changed: that is the confirmation. `No entity
+changed state` means it was already that way. No row: search one word, another
+language, or the domain alone. Several equally likely rows: ask which one.
+
+> No `hass-cli light` command — drive everything with `service call`.
 
 ## Lights (`light.*`)
 

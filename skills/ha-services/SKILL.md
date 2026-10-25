@@ -1,7 +1,7 @@
 ---
 name: ha-services
-version: 0.2.0
-description: "Call Home Assistant services to control devices and trigger actions with hass-cli. Use to turn lights on/off, set climate, open covers, play media, run any domain.service. Covers discovering services (service list/describe) and calling them (service call) with --arguments and --data, including targeting by entity/device/area."
+version: 0.3.0
+description: "List, describe and call any Home Assistant service, and fire events, when no domain skill covers the request."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,11 +10,12 @@ metadata:
 
 # ha-services
 
-Drive devices by calling services. **Prerequisite:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Drive devices by calling services. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
-> This is the workhorse for ALL device control. There are no per-domain
-> commands (no `hass-cli light ...`); everything goes through `service call`
-> against the service schema.
+> Lights, covers, climate and media have their usual calls in their domain
+> skills; reach for this one for any other service and to discover a service's
+> fields. There are no per-domain commands (no `hass-cli light ...`): everything
+> goes through `service call` against the service schema.
 
 ## Discover
 

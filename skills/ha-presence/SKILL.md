@@ -1,7 +1,7 @@
 ---
 name: ha-presence
-version: 0.2.0
-description: "Work with Home Assistant presence and organization: people, zones, device trackers, and groups with hass-cli. Use to see who is home, check a person's location/zone, list zones, set a device_tracker's location, and read group membership for presence-based automations."
+version: 0.3.0
+description: "See who is home and where: people, zones, device trackers and groups."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -11,8 +11,7 @@ metadata:
 # ha-presence
 
 People, zones, trackers, groups — the inputs for presence automations.
-**Prerequisites:** [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md),
-[`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Who is home
 

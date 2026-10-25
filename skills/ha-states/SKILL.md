@@ -1,7 +1,7 @@
 ---
 name: ha-states
-version: 0.2.0
-description: "Read Home Assistant entity states and recent history with hass-cli. Use to answer 'is the light on', 'what's the temperature', 'list all sensors', 'what changed recently', or to inspect any entity's current state and attributes. Covers state list/get, table shaping (--columns/--sort-by), and history/logbook reads."
+version: 0.3.0
+description: "Read entity states and recent history: 'is the light on', 'what is the temperature', list the entities of a domain."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,7 +10,7 @@ metadata:
 
 # ha-states
 
-Read entity state. **Prerequisite:** read [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md) for connection/auth.
+Read entity state. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Commands
 

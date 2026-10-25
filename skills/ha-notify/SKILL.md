@@ -1,7 +1,7 @@
 ---
 name: ha-notify
-version: 0.1.0
-description: "Send notifications and manage persistent notifications in Home Assistant with hass-cli: push messages to phones/devices via notify services, send TTS to speakers, and create/dismiss the dashboard's persistent notifications. Use for 'notify my phone', 'announce on the kitchen speaker', 'show a dashboard alert' requests."
+version: 0.2.0
+description: "Send notifications to phones and devices, speak TTS on speakers, and manage persistent notifications."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-notify
 
-Notifications and announcements. **Prerequisites:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md), [`../ha-services/SKILL.md`](../ha-services/SKILL.md).
+Notifications and announcements. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Discover notify targets
 

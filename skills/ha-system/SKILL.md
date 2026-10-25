@@ -1,7 +1,7 @@
 ---
 name: ha-system
-version: 0.1.0
-description: "Inspect Home Assistant system health, repair issues, error logs, logbook, and state history with hass-cli. Use to diagnose problems, check integration health, find open repairs, read recent errors, or gather the raw native data that audits (dead entities, broken automations) are derived from. Complexity scoring/audit are NOT native HA features; compute them here from native data."
+version: 0.2.0
+description: "Diagnose Home Assistant: system health, repairs, error logs, logbook and state history."
 metadata:
   requires:
     bins: ["hass-cli"]
@@ -10,8 +10,7 @@ metadata:
 
 # ha-system
 
-Native system insight and the data sources for audits. **Prerequisite:**
-[`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+Native system insight and the data sources for audits. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
 
 ## Native commands
 

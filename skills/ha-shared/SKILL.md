@@ -1,6 +1,6 @@
 ---
 name: ha-shared
-version: 0.3.1
+version: 0.3.2
 description: "Connecting hass-cli to Home Assistant (profile or token), output formats, raw REST and WebSocket access, and auth-error recovery. Load when a command cannot connect or authenticate; device control is in the domain skills."
 metadata:
   requires:
@@ -26,11 +26,11 @@ hass-cli state list --domain light --search kitchen
 hass-cli state list --search 客厅
 
 # 2. Call the service on the entity_id from step 1
-hass-cli service call light.turn_on --arguments entity_id=light.kitchen
+hass-cli service call light.turn_on --entity light.kitchen
 hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":30}'
-hass-cli service call switch.turn_off --arguments entity_id=switch.porch
+hass-cli service call switch.turn_off --entity switch.porch
 hass-cli service call climate.set_temperature --data '{"entity_id":"climate.living","temperature":21}'
-hass-cli service call cover.close_cover --arguments entity_id=cover.bedroom
+hass-cli service call cover.close_cover --entity cover.bedroom
 ```
 
 - The call prints the entities it changed: that is the confirmation. `No entity

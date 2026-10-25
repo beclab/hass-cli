@@ -45,6 +45,7 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 					"turn_on": map[string]any{
 						"name":        "Turn on",
 						"description": "Turn a light on",
+						"target":      map[string]any{"entity": []any{map[string]any{"domain": []string{"light"}}}},
 						"fields": map[string]any{
 							"brightness_pct":  map[string]any{"description": "Brightness %"},
 							"advanced_fields": map[string]any{"collapsed": true, "fields": map[string]any{"color_name": map[string]any{"example": "red"}}},
@@ -261,6 +262,8 @@ func TestSmoke(t *testing.T) {
 		{"service-call-unchanged", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.living_room"}, "No entity changed state"},
 		{"state-list-yaml", []string{"-o", "yaml", "state", "list"}, "entity_id: light.kitchen"},
 		{"state-list-ndjson", []string{"-o", "ndjson", "state", "list"}, "{\"entity_id\":\"sun.sun\""},
+		{"service-call-entity_id-flag", []string{"service", "call", "light.turn_on", "--entity_id=light.kitchen"}, "light.kitchen"},
+		{"service-call-entity-id-flag", []string{"service", "call", "light.turn_on", "--entity-id", "light.kitchen"}, "light.kitchen"},
 		{"service-call-comma-pairs", []string{"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen,brightness_pct=40"}, "light.kitchen"},
 		{"service-describe-table", []string{"service", "describe", "light.turn_on"}, "brightness_pct"},
 		{"service-describe-section-fields", []string{"service", "describe", "light.turn_on"}, "color_name"},
@@ -414,6 +417,10 @@ func TestServiceCallEntityChecks(t *testing.T) {
 	cases := map[string][]string{
 		"did you mean light.kitchen (Kitchen Ceiling)": {"service", "call", "light.turn_on", "--arguments", "entity_id=light.kitchen_lamp"},
 		"is not an entity id":                          {"service", "call", "light.turn_on", "--data", `{"entity_id":"Kitchen light"}`},
+		"light.turn_on needs a target: add --entity":   {"service", "call", "light.turn_on"},
+		"service call takes the target and data as":    {"service", "call", "light.turn_on", "--brightness", "40"},
+		"hass-cli service call light.turn_off":         {"light.turn_off", "light.kitchen"},
+		"did you mean state":                           {"stat", "list"},
 	}
 	for want, args := range cases {
 		t.Run(want, func(t *testing.T) {

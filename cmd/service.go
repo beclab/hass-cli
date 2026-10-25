@@ -9,6 +9,7 @@ import (
 	"github.com/beclab/hass-cli/internal/catalog"
 	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
@@ -17,7 +18,8 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "List and call services",
 		Example: `  hass-cli service list
   hass-cli service describe light.turn_on
-  hass-cli service call light.turn_on --arguments entity_id=light.kitchen`,
+  hass-cli service call light.turn_on --arguments entity_id=light.kitchen
+  hass-cli service call light.turn_off --entity light.kitchen`,
 	}
 
 	cmd.AddCommand(&cobra.Command{
@@ -48,7 +50,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	})
 
 	var dataJSON string
-	var arguments []string
+	var arguments, entities []string
 	callCmd := &cobra.Command{
 		Use:   "call <domain.service>",
 		Short: "Call a service, e.g. light.turn_on --arguments entity_id=light.kitchen",
@@ -74,12 +76,18 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 					data[strings.TrimSpace(k)] = coerceValue(strings.TrimSpace(v))
 				}
 			}
+			if len(entities) > 0 {
+				data["entity_id"] = strings.Join(entities, ",")
+			}
 			c, err := f.Client()
 			if err != nil {
 				return err
 			}
 			defer c.Close()
 			if err := checkEntities(cmd.Context(), c, entityIDsIn(data)); err != nil {
+				return err
+			}
+			if err := checkTarget(cmd.Context(), c, domain, service, data); err != nil {
 				return err
 			}
 			raw, err := c.CallService(cmd.Context(), domain, service, data)
@@ -91,6 +99,18 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	}
 	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object (or @file.json)")
 	callCmd.Flags().StringArrayVar(&arguments, "arguments", nil, "key=value pairs (repeatable; one flag may also hold several, comma-separated). Values may be numbers, true/false or JSON lists")
+	callCmd.Flags().StringSliceVar(&entities, "entity", nil, "Target entity id(s), repeatable or comma-separated; the same as --arguments entity_id=...")
+	// --entity_id and --entity-id are what an agent guesses first; take them for --entity.
+	callCmd.Flags().SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
+		switch name {
+		case "entity_id", "entity-id", "entities", "entity_ids", "entity-ids":
+			name = "entity"
+		}
+		return pflag.NormalizedName(name)
+	})
+	callCmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+		return fmt.Errorf("%w\nservice call takes the target and data as: --entity light.kitchen, --arguments key=value, or --data '{\"entity_id\":\"light.kitchen\",...}'", err)
+	})
 	cmd.AddCommand(callCmd)
 
 	cmd.AddCommand(&cobra.Command{

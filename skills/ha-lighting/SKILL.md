@@ -1,6 +1,6 @@
 ---
 name: ha-lighting
-version: 0.3.1
+version: 0.3.2
 description: "Turn lights, switches and fans on or off, dim them, set colour or colour temperature, set fan speed. The skill for 'turn on the light' or 'turn off the fan'."
 metadata:
   requires:
@@ -22,10 +22,10 @@ skills, run `service describe`, or check the state afterwards.
 hass-cli state list --domain light --search kitchen
 
 # 2. Call the service on the entity_id from step 1
-hass-cli service call light.turn_on --arguments entity_id=light.kitchen
-hass-cli service call light.turn_off --arguments entity_id=light.kitchen
-hass-cli service call switch.turn_off --arguments entity_id=switch.porch
-hass-cli service call fan.turn_on --arguments entity_id=fan.bedroom
+hass-cli service call light.turn_on --entity light.kitchen
+hass-cli service call light.turn_off --entity light.kitchen
+hass-cli service call switch.turn_off --entity switch.porch
+hass-cli service call fan.turn_on --entity fan.bedroom
 
 # Colour, brightness, warmth: one light.turn_on, which also switches it on
 hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_name":"yellow"}'

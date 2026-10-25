@@ -18,15 +18,17 @@ func FriendlyMessage(err error) string {
 
 	var httpErr *HTTPError
 	if errors.As(err, &httpErr) {
+		// err, not httpErr: a command may have wrapped the HTTP error with what to do
+		// next, and printing only the inner error dropped that.
 		switch {
 		case httpErr.Status == 401 || httpErr.Status == 403:
-			return httpErr.Error() + " (token rejected or lacks permission; check HASS_TOKEN is a valid admin long-lived token)"
+			return err.Error() + " (token rejected or lacks permission; check HASS_TOKEN is a valid admin long-lived token)"
 		case httpErr.Status == 404:
-			return httpErr.Error() + " (not found; check the path or resource exists)"
+			return err.Error() + " (not found; check the path or resource exists)"
 		case httpErr.Status >= 500:
-			return httpErr.Error() + " (Home Assistant internal error; check the HA logs)"
+			return err.Error() + " (Home Assistant internal error; check the HA logs)"
 		default:
-			return httpErr.Error()
+			return err.Error()
 		}
 	}
 

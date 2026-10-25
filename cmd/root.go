@@ -2,6 +2,9 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
 )
@@ -28,6 +31,21 @@ func NewRootCommand() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       version,
+		// A service name used as a command (hass-cli light.turn_off ...) is the
+		// commonest wrong guess; say what the right command is.
+		Args: cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			if strings.Count(args[0], ".") == 1 && !strings.HasPrefix(args[0], "-") {
+				return fmt.Errorf("unknown command %q for \"hass-cli\"; to call that service: hass-cli service call %s --entity <entity_id>", args[0], args[0])
+			}
+			if near := cmd.SuggestionsFor(args[0]); len(near) > 0 {
+				return fmt.Errorf("unknown command %q for \"hass-cli\"; did you mean %s?", args[0], strings.Join(near, ", "))
+			}
+			return fmt.Errorf("unknown command %q for \"hass-cli\"; run hass-cli --help for the commands", args[0])
+		},
 	}
 
 	pf := root.PersistentFlags()

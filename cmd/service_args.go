@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/beclab/hass-cli/internal/catalog"
 	"github.com/beclab/hass-cli/internal/client"
 )
 
@@ -173,4 +174,31 @@ func explainCallError(err error, service string) error {
 		return fmt.Errorf("%w\nHome Assistant rejected the service data. Check the field names and values with `hass-cli service describe %s`; colours, lists and objects go in --data, e.g. --data '{\"entity_id\":\"light.kitchen\",\"rgb_color\":[255,200,0]}'", err, service)
 	}
 	return err
+}
+
+// targetKeys are the ways a service call can name what it acts on.
+var targetKeys = []string{"entity_id", "device_id", "area_id", "floor_id", "label_id", "target"}
+
+// checkTarget fails before the call when the service acts on targets and the
+// data names none: Home Assistant answers that with a bare "400: Bad Request".
+// Whether a service takes a target comes from the live service catalog.
+func checkTarget(ctx context.Context, c *client.Client, domain, service string, data map[string]any) error {
+	for _, key := range targetKeys {
+		if _, ok := data[key]; ok {
+			return nil
+		}
+	}
+	raw, err := c.Services(ctx)
+	if err != nil {
+		return nil
+	}
+	cat, err := catalog.Parse(raw)
+	if err != nil {
+		return nil
+	}
+	svc, ok := cat.Lookup(domain, service)
+	if !ok || len(svc.Target) == 0 || string(svc.Target) == "null" {
+		return nil
+	}
+	return fmt.Errorf("%s.%s needs a target: add --entity %s.<object_id> (find it with: hass-cli state list --domain %s --search <name>)", domain, service, domain, domain)
 }

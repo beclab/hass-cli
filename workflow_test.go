@@ -165,3 +165,26 @@ func TestServiceCallNamesARunningScript(t *testing.T) {
 		t.Fatalf("nothing drives the living room light, yet: %s", stderr)
 	}
 }
+
+// A service that returns data is refused by Home Assistant unless the call
+// asks for the response, and the response, not the changed states, is the
+// answer.
+func TestServiceCallReturnsResponse(t *testing.T) {
+	srv := mockHA(t)
+	defer srv.Close()
+	t.Setenv("HASS_SERVER", srv.URL)
+	t.Setenv("HASS_TOKEN", "test-token")
+
+	stdout, _, err := runAll(t, "service", "call", "weather.get_forecasts", "--entity", "weather.home", "--data", `{"type":"daily"}`)
+	if err != nil {
+		t.Fatalf("a service that requires a response failed: %v", err)
+	}
+	if !strings.Contains(stdout, "sunny") || !strings.Contains(stdout, "weather.home") {
+		t.Fatalf("the forecast is not printed: %q", stdout)
+	}
+
+	_, _, err = runAll(t, "service", "call", "light.turn_on", "--entity", "light.kitchen", "--response")
+	if err == nil || !strings.Contains(err.Error(), "returns no data") {
+		t.Fatalf("--response on a service without data should be refused, got %v", err)
+	}
+}

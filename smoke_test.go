@@ -60,6 +60,14 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 			writeJSON(w, map[string]any{"alias": "Demo", "actions": []any{map[string]any{"action": "switch.turn_on", "target": map[string]any{"entity_id": "switch.kitchen_kettle"}}}})
 		case strings.HasPrefix(r.URL.Path, "/api/config/") && r.Method == http.MethodPost:
 			writeJSON(w, map[string]any{"result": "ok"})
+		case r.URL.Path == "/api/services/weather/get_forecasts":
+			if _, ok := r.URL.Query()["return_response"]; !ok {
+				http.Error(w, "400: Bad Request", http.StatusBadRequest)
+				return
+			}
+			writeJSON(w, map[string]any{"changed_states": []any{}, "service_response": map[string]any{
+				"weather.home": map[string]any{"forecast": []any{map[string]any{"datetime": "2026-11-28T00:00:00+08:00", "condition": "sunny", "temperature": 12}}},
+			}})
 		case r.URL.Path == "/api/services/script/trigger":
 			http.Error(w, "400: Bad Request", http.StatusBadRequest)
 		case r.URL.Path == "/api/" || r.URL.Path == "/api":
@@ -74,6 +82,15 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 			writeJSON(w, []string{"random", "group", "template"})
 		case r.URL.Path == "/api/services":
 			writeJSON(w, []map[string]any{{
+				"domain": "weather",
+				"services": map[string]any{
+					"get_forecasts": map[string]any{
+						"target":   map[string]any{"entity": []any{map[string]any{"domain": []string{"weather"}}}},
+						"fields":   map[string]any{"type": map[string]any{"required": true}},
+						"response": map[string]any{"optional": false},
+					},
+				},
+			}, {
 				"domain": "light",
 				"services": map[string]any{
 					"turn_on": map[string]any{
@@ -94,6 +111,7 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 		case r.URL.Path == "/api/states":
 			writeJSON(w, []map[string]any{
 				{"entity_id": "sun.sun", "state": "above_horizon"},
+				{"entity_id": "weather.home", "state": "sunny"},
 				{"entity_id": "light.kitchen", "state": "off", "attributes": map[string]any{"friendly_name": "Kitchen Ceiling"}},
 				{"entity_id": "light.living_room", "state": "on", "attributes": map[string]any{"friendly_name": "客厅灯"}},
 				{"entity_id": "switch.kitchen_kettle", "state": "off", "attributes": map[string]any{"friendly_name": "Kettle"}},

@@ -11,6 +11,7 @@ import (
 	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
@@ -52,6 +53,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 
 	var dataJSON string
 	var arguments, entities []string
+	var wantResponse bool
 	callCmd := &cobra.Command{
 		Use:   "call <domain.service> [entity_id...]",
 		Short: "Call a service, e.g. light.turn_on --arguments entity_id=light.kitchen",
@@ -89,12 +91,20 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if err := checkEntities(cmd.Context(), c, entityIDsIn(data)); err != nil {
 				return err
 			}
-			if err := checkService(cmd.Context(), c, domain, service, data); err != nil {
+			withResponse, err := checkService(cmd.Context(), c, domain, service, data, wantResponse)
+			if err != nil {
 				return err
 			}
-			raw, err := c.CallService(cmd.Context(), domain, service, data)
+			call := c.CallService
+			if withResponse {
+				call = c.CallServiceForResponse
+			}
+			raw, err := call(cmd.Context(), domain, service, data)
 			if err != nil {
 				return explainCallError(err, args[0])
+			}
+			if withResponse {
+				return renderServiceResponse(f, raw)
 			}
 			if err := renderCallResult(f, raw); err != nil {
 				return err
@@ -109,6 +119,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 	}
 	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object (or @file.json)")
 	callCmd.Flags().StringArrayVar(&arguments, "arguments", nil, "key=value pairs (repeatable; one flag may also hold several, comma-separated). Values may be numbers, true/false or JSON lists")
+	callCmd.Flags().BoolVar(&wantResponse, "response", false, "Print the data the service returns (implied for services that always return data, e.g. weather.get_forecasts)")
 	callCmd.Flags().StringSliceVar(&entities, "entity", nil, "Target entity id(s), repeatable or comma-separated; the same as --arguments entity_id=...")
 	// --entity_id and --entity-id are what an agent guesses first; take them for --entity.
 	callCmd.Flags().SetNormalizeFunc(func(_ *pflag.FlagSet, name string) pflag.NormalizedName {
@@ -206,6 +217,30 @@ func renderCallResult(f *cmdutil.Factory, raw json.RawMessage) error {
 		return err
 	}
 	return renderRawCols(f, raw, colsState)
+}
+
+// renderServiceResponse prints what a service returned, keyed by entity, and
+// leaves the changed states out: a forecast or a to-do list is the answer.
+func renderServiceResponse(f *cmdutil.Factory, raw json.RawMessage) error {
+	if f.Output == "json" || f.Output == "ndjson" {
+		return renderRaw(f, raw)
+	}
+	r, err := f.Renderer()
+	if err != nil {
+		return err
+	}
+	var body struct {
+		ServiceResponse any `json:"service_response"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil || body.ServiceResponse == nil {
+		return renderRaw(f, raw)
+	}
+	out, err := yaml.Marshal(body.ServiceResponse)
+	if err != nil {
+		return err
+	}
+	_, err = r.Out.Write(out)
+	return err
 }
 
 // fieldRows lists a service's fields one per row, sorted, for table output. A

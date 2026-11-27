@@ -18,6 +18,7 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "health",
+		Args:  cobra.NoArgs,
 		Short: "Integration system health info",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()
@@ -35,6 +36,7 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "repairs",
+		Args:  cobra.NoArgs,
 		Short: "List open repair issues (Issue Registry)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()
@@ -52,6 +54,7 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "errorlog",
+		Args:  cobra.NoArgs,
 		Short: "Print the Home Assistant error log",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()
@@ -71,6 +74,7 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 	var lbStart, lbEntity string
 	logbookCmd := &cobra.Command{
 		Use:   "logbook",
+		Args:  cobra.NoArgs,
 		Short: "Logbook entries (optionally from --start, filtered by --entity)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()
@@ -99,6 +103,7 @@ func newSystemCmd(f *cmdutil.Factory) *cobra.Command {
 	var histStart, histEntities string
 	historyCmd := &cobra.Command{
 		Use:   "history",
+		Args:  cobra.NoArgs,
 		Short: "State history (from --start, filtered by --entities a,b,c)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()

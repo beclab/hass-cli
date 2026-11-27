@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"regexp"
 	"strings"
 
 	"github.com/beclab/hass-cli/internal/cmdutil"
@@ -19,11 +19,13 @@ func newWorkflowCmds(f *cmdutil.Factory) *cobra.Command {
 		Use:   "workflow",
 		Short: "Manage automations, scripts, and scenes",
 		Long: `Manage automations, scripts, and scenes. Each subcommand takes a domain
-(automation|script|scene) and supports list/get/save/delete/reload/trigger.
-"save" reads a YAML or JSON document via --file.`,
-		Example: `  hass-cli workflow automation list
-  hass-cli workflow automation save my_auto --file my_auto.yaml
-  hass-cli workflow scene get scene.movie_time`,
+(automation|script|scene) and supports list/get/save/delete/reload/trigger,
+and stop for scripts and automations.
+"save" takes the config as --data: inline JSON, or @file with YAML or JSON.`,
+		Example: `  hass-cli workflow script save color_cycle --data @color_cycle.yaml
+  hass-cli workflow script trigger script.color_cycle
+  hass-cli workflow script stop script.color_cycle
+  hass-cli workflow automation list`,
 	}
 	for _, domain := range []string{"automation", "script", "scene"} {
 		parent.AddCommand(newWorkflowCmd(f, domain))
@@ -35,6 +37,20 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   domain,
 		Short: fmt.Sprintf("Operate on %ss", domain),
+		// An unknown verb's flags are not the error; the verb is.
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return cmd.Help()
+			}
+			var verbs []string
+			for _, sub := range cmd.Commands() {
+				if sub.IsAvailableCommand() {
+					verbs = append(verbs, sub.Name())
+				}
+			}
+			return fmt.Errorf("unknown command %q for %q; it has: %s", args[0], cmd.CommandPath(), strings.Join(verbs, ", "))
+		},
 	}
 
 	cmd.AddCommand(&cobra.Command{
@@ -81,36 +97,57 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 		},
 	})
 
-	var file string
+	var data string
 	saveCmd := &cobra.Command{
 		Use:   "save <id>",
-		Short: fmt.Sprintf("Create or update a %s from a YAML/JSON file", domain),
+		Short: fmt.Sprintf("Create or update a %s by id", domain),
+		Long:  saveLong(domain),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if file == "" {
-				return fmt.Errorf("--file is required")
+			id := args[0]
+			if err := checkConfigID(domain, id); err != nil {
+				return err
 			}
-			data, err := os.ReadFile(file)
+			if data == "" {
+				return fmt.Errorf("--data is required: the %s config as inline JSON, or @file with YAML or JSON", domain)
+			}
+			raw, err := readDataArg(data)
 			if err != nil {
 				return err
 			}
-			var body any
-			if err := yaml.Unmarshal(data, &body); err != nil {
-				return fmt.Errorf("parse %s: %w", file, err)
+			var body map[string]any
+			if err := yaml.Unmarshal(raw, &body); err != nil || len(body) == 0 {
+				return fmt.Errorf("--data must be a non-empty %s config object (YAML or JSON): %v", domain, err)
 			}
 			c, err := f.Client()
 			if err != nil {
 				return err
 			}
 			defer c.Close()
-			raw, err := c.REST(cmd.Context(), "POST", configPath(domain, args[0]), body)
+			res, err := c.REST(cmd.Context(), "POST", configPath(domain, id), body)
 			if err != nil {
 				return err
 			}
-			return renderRaw(f, raw)
+			if f.Output != "" && f.Output != "table" {
+				return renderRaw(f, res)
+			}
+			r, err := f.Renderer()
+			if err != nil {
+				return err
+			}
+			switch domain {
+			case "script":
+				_, err = fmt.Fprintf(r.Out, "Saved script.%s. Run it: hass-cli workflow script trigger script.%s\n", id, id)
+			default:
+				_, err = fmt.Fprintf(r.Out, "Saved %s %s. Its entity id comes from its alias: hass-cli workflow %s list\n", domain, id, domain)
+			}
+			return err
 		},
 	}
-	saveCmd.Flags().StringVar(&file, "file", "", "Config file (YAML or JSON)")
+	saveCmd.Flags().StringVar(&data, "data", "", "The config: inline JSON, or @file with YAML or JSON")
+	saveCmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+		return fmt.Errorf("%w\nsave takes the config as --data '<json>' or --data @file.yaml", err)
+	})
 	cmd.AddCommand(saveCmd)
 
 	cmd.AddCommand(&cobra.Command{
@@ -148,9 +185,12 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 		},
 	})
 
+	// Home Assistant runs a script with script.turn_on and a scene with
+	// scene.turn_on; only automations have a trigger service.
+	runService := map[string]string{"automation": "trigger", "script": "turn_on", "scene": "turn_on"}[domain]
 	cmd.AddCommand(&cobra.Command{
 		Use:   "trigger <entity_id>",
-		Short: fmt.Sprintf("Trigger a %s", domain),
+		Short: fmt.Sprintf("Run a %s now (%s.%s)", domain, domain, runService),
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := f.Client()
@@ -158,11 +198,7 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 				return err
 			}
 			defer c.Close()
-			service := "trigger"
-			if domain == "scene" {
-				service = "turn_on"
-			}
-			raw, err := c.CallService(cmd.Context(), domain, service, map[string]any{"entity_id": args[0]})
+			raw, err := c.CallService(cmd.Context(), domain, runService, map[string]any{"entity_id": args[0]})
 			if err != nil {
 				return err
 			}
@@ -170,7 +206,96 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 		},
 	})
 
+	if domain != "scene" {
+		cmd.AddCommand(&cobra.Command{
+			Use:   "stop <entity_id>",
+			Short: fmt.Sprintf("Stop a running %s", domain),
+			Long:  stopLong(domain),
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				c, err := f.Client()
+				if err != nil {
+					return err
+				}
+				defer c.Close()
+				target := map[string]any{"entity_id": args[0]}
+				if domain == "script" {
+					raw, err := c.CallService(cmd.Context(), "script", "turn_off", target)
+					if err != nil {
+						return err
+					}
+					return renderRaw(f, raw)
+				}
+				if _, err := c.CallService(cmd.Context(), "automation", "turn_off", map[string]any{"entity_id": args[0], "stop_actions": true}); err != nil {
+					return err
+				}
+				raw, err := c.CallService(cmd.Context(), "automation", "turn_on", target)
+				if err != nil {
+					return fmt.Errorf("stopped %s but could not enable it again: %w", args[0], err)
+				}
+				return renderRaw(f, raw)
+			},
+		})
+	}
+
 	return cmd
+}
+
+func saveLong(domain string) string {
+	switch domain {
+	case "script":
+		return `Create or update a script. <id> is the bare id: saving color_cycle makes the
+entity script.color_cycle. Lowercase letters, digits and underscores only.
+Home Assistant reloads scripts on save.`
+	case "automation":
+		return `Create or update an automation. <id> is the config id (any string; the UI uses
+32 hex characters). The entity id comes from the alias, not the id.
+Home Assistant reloads automations on save.`
+	}
+	return `Create or update a scene. <id> is the config id; the entity id comes from
+the scene's name.`
+}
+
+func stopLong(domain string) string {
+	if domain == "script" {
+		return "Stop a running script (script.turn_off). The script stays defined and can run again."
+	}
+	return `Stop an automation's running actions and leave it enabled: automation.turn_off
+with stop_actions, then automation.turn_on.`
+}
+
+var scriptIDRe = regexp.MustCompile(`^[a-z0-9_]+$`)
+
+// checkConfigID refuses ids Home Assistant would reject, before the request.
+func checkConfigID(domain, id string) error {
+	if bare, ok := strings.CutPrefix(id, domain+"."); ok {
+		return fmt.Errorf("save takes the bare id: %s (the entity becomes %s.%s)", bare, domain, bare)
+	}
+	if domain == "script" && !scriptIDRe.MatchString(id) {
+		suggestion := slugify(id)
+		if suggestion == "" {
+			suggestion = "an English name such as color_cycle"
+		}
+		return fmt.Errorf("%q is not a script id; use %s (lowercase letters, digits, underscores)", id, suggestion)
+	}
+	return nil
+}
+
+func slugify(s string) string {
+	var b strings.Builder
+	underscore := false
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			underscore = false
+			continue
+		}
+		if !underscore && b.Len() > 0 {
+			b.WriteByte('_')
+			underscore = true
+		}
+	}
+	return strings.TrimSuffix(b.String(), "_")
 }
 
 func configPath(domain, id string) string {

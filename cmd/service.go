@@ -96,7 +96,15 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if err != nil {
 				return explainCallError(err, args[0])
 			}
-			return renderCallResult(f, raw)
+			if err := renderCallResult(f, raw); err != nil {
+				return err
+			}
+			if !workflowDomains[domain] {
+				for _, d := range runningDrivers(cmd.Context(), c, entityIDsIn(data)) {
+					fmt.Fprintf(cmd.ErrOrStderr(), "Note: %s is still running and controls %s, so it may change it again. Stop it first if the user wants this to stay: hass-cli workflow %s stop %s\n", d.entity, d.target, d.domain, d.entity)
+				}
+			}
+			return nil
 		},
 	}
 	callCmd.Flags().StringVar(&dataJSON, "data", "", "Service data as a JSON object (or @file.json)")

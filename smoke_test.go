@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -8,11 +9,28 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/beclab/hass-cli/cmd"
 	"github.com/coder/websocket"
 )
+
+// requestLog records the REST requests the mock receives, as "METHOD path body".
+type requestLog struct {
+	mu  sync.Mutex
+	got []string
+}
+
+func (l *requestLog) add(s string) { l.mu.Lock(); l.got = append(l.got, s); l.mu.Unlock() }
+func (l *requestLog) reset()       { l.mu.Lock(); l.got = nil; l.mu.Unlock() }
+func (l *requestLog) all() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return append([]string(nil), l.got...)
+}
+
+var haRequests requestLog
 
 // mockHA stands up a minimal Home Assistant API (REST + WebSocket) so CLI
 // commands can be smoke-tested end to end without a real instance.
@@ -27,7 +45,23 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		haRequests.add(r.Method + " " + r.URL.Path + " " + string(body))
 		switch {
+		case r.URL.Path == "/api/config/script/config/color_cycle" && r.Method == http.MethodGet:
+			writeJSON(w, map[string]any{"alias": "Colour cycle", "sequence": []any{map[string]any{
+				"repeat": map[string]any{"count": 10, "sequence": []any{
+					map[string]any{"action": "light.turn_on", "target": map[string]any{"entity_id": "light.kitchen"}, "data": map[string]any{"color_name": "red"}},
+					map[string]any{"delay": map[string]any{"seconds": 5}},
+				}},
+			}}})
+		case r.URL.Path == "/api/config/automation/config/a1" && r.Method == http.MethodGet:
+			writeJSON(w, map[string]any{"alias": "Demo", "actions": []any{map[string]any{"action": "switch.turn_on", "target": map[string]any{"entity_id": "switch.kitchen_kettle"}}}})
+		case strings.HasPrefix(r.URL.Path, "/api/config/") && r.Method == http.MethodPost:
+			writeJSON(w, map[string]any{"result": "ok"})
+		case r.URL.Path == "/api/services/script/trigger":
+			http.Error(w, "400: Bad Request", http.StatusBadRequest)
 		case r.URL.Path == "/api/" || r.URL.Path == "/api":
 			writeJSON(w, map[string]any{"message": "API running."})
 		case r.URL.Path == "/api/config":
@@ -63,7 +97,9 @@ func mockHAWith(t *testing.T, components []string) *httptest.Server {
 				{"entity_id": "light.kitchen", "state": "off", "attributes": map[string]any{"friendly_name": "Kitchen Ceiling"}},
 				{"entity_id": "light.living_room", "state": "on", "attributes": map[string]any{"friendly_name": "客厅灯"}},
 				{"entity_id": "switch.kitchen_kettle", "state": "off", "attributes": map[string]any{"friendly_name": "Kettle"}},
-				{"entity_id": "automation.demo", "state": "on"},
+				{"entity_id": "automation.demo", "state": "on", "attributes": map[string]any{"id": "a1", "current": 1}},
+				{"entity_id": "script.color_cycle", "state": "on", "attributes": map[string]any{"friendly_name": "Colour cycle", "current": 1}},
+				{"entity_id": "script.idle", "state": "off", "attributes": map[string]any{"friendly_name": "Idle"}},
 			})
 		case strings.HasPrefix(r.URL.Path, "/api/states/"):
 			id := strings.TrimPrefix(r.URL.Path, "/api/states/")

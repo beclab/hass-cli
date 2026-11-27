@@ -22,6 +22,15 @@ type Service struct {
 	Description string           `json:"description,omitempty"`
 	Fields      map[string]Field `json:"fields,omitempty"`
 	Target      json.RawMessage  `json:"target,omitempty"`
+	// Response is set on a service that returns data (weather.get_forecasts,
+	// todo.get_items). Home Assistant refuses such a call unless it asks for
+	// the response, and refuses the ask on any other service.
+	Response *Response `json:"response,omitempty"`
+}
+
+// Response says whether a service's data is optional to ask for.
+type Response struct {
+	Optional bool `json:"optional"`
 }
 
 // Domain groups services under a domain name.

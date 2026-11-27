@@ -200,23 +200,36 @@ var fieldRenames = map[string]string{
 // answers both with a bare "400: Bad Request". The service's targets and fields
 // come from the live service catalog; a service that lists no fields is not
 // checked for them, since scripts take any variables.
-func checkService(ctx context.Context, c *client.Client, domain, service string, data map[string]any) error {
+//
+// It also settles whether the call asks for the service's response: always
+// for a service that requires it, on --response for one where it is optional.
+// Without the catalog, --response alone decides.
+func checkService(ctx context.Context, c *client.Client, domain, service string, data map[string]any, wantResponse bool) (bool, error) {
 	raw, err := c.Services(ctx)
 	if err != nil {
-		return nil
+		return wantResponse, nil
 	}
 	cat, err := catalog.Parse(raw)
 	if err != nil {
-		return nil
+		return wantResponse, nil
 	}
 	svc, ok := cat.Lookup(domain, service)
 	if !ok {
-		return nil
+		return wantResponse, nil
 	}
 	if err := checkTarget(domain, service, svc, data); err != nil {
-		return err
+		return false, err
 	}
-	return checkFields(domain+"."+service, svc, data)
+	if err := checkFields(domain+"."+service, svc, data); err != nil {
+		return false, err
+	}
+	switch {
+	case svc.Response == nil && wantResponse:
+		return false, fmt.Errorf("%s.%s returns no data; drop --response (the call prints the states it changed)", domain, service)
+	case svc.Response != nil && !svc.Response.Optional:
+		return true, nil
+	}
+	return wantResponse, nil
 }
 
 // checkTarget fails when the service acts on targets and the data names none.

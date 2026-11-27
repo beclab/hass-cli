@@ -141,6 +141,12 @@ func (c *Client) CallService(ctx context.Context, domain, service string, data m
 	return c.rest.do(ctx, "POST", fmt.Sprintf("services/%s/%s", domain, service), data)
 }
 
+// CallServiceForResponse calls a service that returns data. The body is
+// {"changed_states": [...], "service_response": {...}}.
+func (c *Client) CallServiceForResponse(ctx context.Context, domain, service string, data map[string]any) (json.RawMessage, error) {
+	return c.rest.do(ctx, "POST", fmt.Sprintf("services/%s/%s?return_response", domain, service), data)
+}
+
 // FireEvent fires a custom event with optional data.
 func (c *Client) FireEvent(ctx context.Context, eventType string, data map[string]any) (json.RawMessage, error) {
 	return c.rest.do(ctx, "POST", "events/"+eventType, data)

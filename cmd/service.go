@@ -83,6 +83,7 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			if len(entities) > 0 {
 				data["entity_id"] = strings.Join(entities, ",")
 			}
+			liftTarget(data)
 			c, err := f.Client()
 			if err != nil {
 				return err
@@ -162,7 +163,22 @@ func newServiceCmd(f *cmdutil.Factory) *cobra.Command {
 			}
 			if f.Output == "" || f.Output == "table" {
 				// A table needs rows; one object rendered as a table came out empty.
-				return renderValueCols(f, fieldRows(svc), "FIELD=field,REQUIRED=required,DESCRIPTION=description,EXAMPLE=example")
+				if err := renderValueCols(f, fieldRows(svc), "FIELD=field,REQUIRED=required,DESCRIPTION=description,EXAMPLE=example"); err != nil {
+					return err
+				}
+				if svc.Response == nil {
+					return nil
+				}
+				r, err := f.Renderer()
+				if err != nil {
+					return err
+				}
+				note := "\nReturns data: service call prints it.\n"
+				if svc.Response.Optional {
+					note = "\nCan return data: add --response to service call to print it.\n"
+				}
+				_, err = fmt.Fprint(r.Out, note)
+				return err
 			}
 			return renderValue(f, svc)
 		},

@@ -1,24 +1,20 @@
 ---
 name: ha-shared
-version: 0.3.2
-description: "Connecting hass-cli to Home Assistant (profile or token), output formats, raw REST and WebSocket access, and auth-error recovery. Load when a command cannot connect or authenticate; device control is in the domain skills."
+version: "0.0.0"
+description: "Read first for any Home Assistant request: find a device and call a service on it in two commands, when to check afterwards, stopping a script or automation that keeps changing a device, and which ha-* skill owns the rest."
+compatibility: Requires hass-cli on PATH
 metadata:
   requires:
     bins: ["hass-cli"]
-  cliHelp: "hass-cli --help"
 ---
 
-# ha-shared (foundation)
+# ha-shared
 
-How to connect and the conventions every `ha-*` command follows. Load it when a command cannot connect or authenticate; device control is in the domain skills, each of which carries its own quick control.
+The front door of the `ha-*` suite. Every other skill assumes this one has been read: it holds the control that most requests need and the rules no domain skill repeats. Flags are `hass-cli <command> --help`'s job.
 
-> Source of truth for flags is always `hass-cli <command> --help`. This file carries the connection model, transport routing, and error recovery that `--help` cannot.
+## Control a device
 
-## Quick control (most requests)
-
-To turn a device that already exists on or off, toggle it, dim it, or set a
-temperature or position, two commands are enough. Do not read other skills,
-run `service describe`, or check the state afterwards.
+Turning something that exists on or off, dimming it, setting a temperature or a position takes two commands. Do not read another skill or run `service describe` for these.
 
 ```bash
 # 1. Find it by name and/or domain: a few rows, not the whole house
@@ -26,142 +22,55 @@ hass-cli state list --domain light --search kitchen
 hass-cli state list --search 客厅
 
 # 2. Call the service on the entity_id from step 1
-hass-cli service call light.turn_on --entity light.kitchen
+hass-cli service call light.turn_off --entity light.kitchen
 hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":30}'
-hass-cli service call switch.turn_off --entity switch.porch
 hass-cli service call climate.set_temperature --data '{"entity_id":"climate.living","temperature":21}'
 hass-cli service call cover.close_cover --entity cover.bedroom
 ```
 
-- The call prints the entities it changed: that is the confirmation. `No entity
-  changed state` means the target was already that way, which is not a failure.
-- `--search` matches the entity_id and the friendly name; every word must match.
-  No row: try one word, another language, or `--domain` alone. Several rows: use
-  the one whose name fits, or ask which one when they are equally likely.
-- The usual services: `<domain>.turn_on` / `turn_off` / `toggle` for light,
-  switch, fan and input_boolean; `climate.set_temperature` / `set_hvac_mode`;
-  `cover.open_cover` / `close_cover` / `set_cover_position`; `lock.lock` /
-  `unlock`; `media_player.media_play_pause` / `volume_set`; `scene.turn_on`;
-  `script.turn_on`. The domain skills hold the rest.
-- Reach for the sections below only when a command fails (connection, auth,
-  quoting) or the request is more than direct control.
+- `--search` matches the entity_id and the friendly name, every word. No row: try one word, the other language, or `--domain` alone. Several rows: take the one whose name fits, or ask when two are equally likely.
+- The usual services: `turn_on` / `turn_off` / `toggle` for light, switch, fan and input_boolean; `climate.set_temperature` / `set_hvac_mode`; `cover.open_cover` / `close_cover` / `set_cover_position`; `lock.lock` / `unlock`; `media_player.media_play_pause` / `volume_set`. The domain skills hold the rest.
+- Colours, lists and nested values go in `--data '{...}'`; `--entity` and `--arguments key=value` cover the flat cases.
 
-## Connection
+## Did it work
 
-hass-cli reaches a Home Assistant instance two ways under one facade:
+The call prints the entities it changed; that is the confirmation, and no `state get` is needed. `No entity changed state` means the device already was that way, which is not a failure.
 
-- **REST API** (`/api/*`) — most reads/writes.
-- **WebSocket API** (`/api/websocket`) — registries, subscriptions, and the Supervisor proxy.
+Check further only when the output says something else:
 
-Get a token: HA profile page -> "Long-Lived Access Tokens" -> Create Token.
+- **A `Note:` names a running script or automation.** It controls the device and will change it again at its next step, so the call alone does not hold. When the user wants the device to stay as asked ("turn the light off" while a colour loop runs), stop the run with the command the note prints, then call the service again:
 
-**Preferred: save a profile.** A profile bundles a server URL with its token;
-the token is stored in the OS keychain (not in a plaintext file), and the index
-(`profiles.json`, no secrets) lives under the config dir.
+  ```bash
+  hass-cli workflow script stop script.color_cycle
+  hass-cli service call light.turn_off --entity light.kitchen
+  ```
 
-```bash
-# interactive on a terminal: prompts for URL + token (hidden), validates, saves
-hass-cli profile login home
-# non-interactive (token via stdin):
-printf '%s' "$TOKEN" | hass-cli profile login home --server http://homeassistant.local:8123 --token-stdin
-```
+  `workflow automation stop` ends an automation's run and leaves it enabled. Stopping is a change the user did not name: say that the loop was stopped.
+- **The user asks to verify**, or a device is known not to report back: `hass-cli state get <entity_id>`.
 
-Manage profiles with `hass-cli profile list/use/show/remove`. Select one per
-call with `--profile <name>`; the default is the current profile.
+## Errors on a call
 
-**Alternative: environment variables** (no keychain, good for CI):
+The CLI names the cause and the next command for an unknown entity, a missing target and an unknown field; follow it. For an `HTTP 400` it cannot explain, `hass-cli service describe <domain.service>` lists the fields.
 
-```bash
-export HASS_SERVER="http://homeassistant.local:8123"
-export HASS_TOKEN="<long-lived access token>"
-```
+Two failed calls in a row on one request: stop and say what failed rather than trying more variations.
 
-Precedence (low → high): profile (`profiles.json` + keychain) → legacy
-`config.yaml` → environment → explicit `--server` / `--token` flags.
+## Which skill
 
-## Output
+Each skill's description says what it is for; [the suite map](references/ha-shared-suite-map.md) lists them by request when two seem to fit. Device-family skills (lights, climate, openings, media) only add what is particular to the family, on top of the control above.
 
-`-o, --output` selects `table` (default), `json`, `yaml`, or `ndjson`. For agent
-consumption prefer `--output json`. Table shaping: `--columns`, `--sort-by`,
-`--no-headers`.
+Scripts, automations and scenes, including "make it loop", "every few seconds" and "stop that", are [`ha-automation`](../ha-automation/SKILL.md).
 
-## Verb map (route to the right skill)
+## Connection and raw access
 
-| Intent | Command | Skill |
-|---|---|---|
-| First-run setup / manage profiles | `hass-cli profile login/list/use/show/remove` | ha-shared |
-| Connectivity check | `hass-cli ping` | ha-shared |
-| Read entity states | `hass-cli state list/get` | ha-states |
-| Call a service | `hass-cli service call <domain.service>` | ha-services |
-| Lights / switches / fans | `hass-cli service call light.* ...` | ha-lighting |
-| Climate / thermostat / humidity | `hass-cli service call climate.* ...` | ha-climate |
-| Covers / locks / valves | `hass-cli service call cover.*/lock.* ...` | ha-openings |
-| Media players | `hass-cli service call media_player.* ...` | ha-media |
-| Notifications / TTS | `hass-cli service call notify.*/tts.* ...` | ha-notify |
-| People / zones / presence | `hass-cli state list/get person.* ...` | ha-presence |
-| Helpers (input_*, counter, timer) | `hass-cli helper <type> ...` | ha-helpers |
-| Sensors/number/select/vacuum/alarm/todo/calendar | `hass-cli state get` / `service call` | ha-entities |
-| Energy dashboard / consumption | `hass-cli energy ...` | ha-energy |
-| Long-term statistics / trends | `hass-cli statistics ...` | ha-statistics |
-| Voice / conversation / Assist pipelines | `hass-cli assist ...` | ha-assist |
-| Dashboards / cards / resources | `hass-cli lovelace ...` | ha-lovelace |
-| Areas/devices/entities/floors/labels/categories | `hass-cli registry <kind> ...` | ha-registry |
-| Automations/scripts/scenes | `hass-cli workflow <domain> ...` | ha-automation |
-| Build a new automation from a request (playbook) | `hass-cli workflow ...` | ha-workflow-automation-builder |
-| Audit for dead entities / broken/unused automations (playbook) | `hass-cli system ...` + `state list` | ha-workflow-audit |
-| Integrations / config entries / discovery | `hass-cli integration ...` | ha-integrations |
-| Zigbee/Z-Wave/Matter/Thread gateways & networks | `hass-cli service call zha.* ...` / `hass-cli raw ws zha\|zwave_js\|matter\|thread/...` | ha-gateway |
-| Backups (create/restore/delete) | `hass-cli backup ...` | ha-backup |
-| System health / repairs / logs / hardware / analytics / labs | `hass-cli system ...` | ha-system |
-| Add-ons / Supervisor (HA OS only) | `hass-cli addon ...` / `hass-cli supervisor ...` | ha-supervisor |
-
-## Raw passthrough (full coverage)
-
-Anything not yet wrapped by a typed command is still reachable:
-
-```bash
-hass-cli raw api GET states/sun.sun
-hass-cli raw ws get_config
-hass-cli raw ws supervisor/api --data '{"endpoint":"/addons","method":"get"}'
-```
-
-REST paths are relative to `/api`, but a leading `/api/` (or `api/`) is tolerated, so values copied from docs still resolve.
-
-## Passing JSON with `--data` (avoid shell quoting traps)
-
-Every `--data` flag accepts either inline JSON or `@path` to read JSON from a
-file. On Windows PowerShell, inline JSON quoting is fragile (PowerShell strips
-inner `"`), so **prefer `@file.json`** there:
-
-```bash
-# portable: read JSON from a file
-hass-cli registry area create --data @area.json
-
-# inline (bash/zsh): single-quote the whole object
-hass-cli registry area create --data '{"name":"Garage"}'
-
-# inline (PowerShell): escape inner quotes with backslash
-hass-cli registry area create --data '{\"name\":\"Garage\"}'
-```
-
-## Auth-error recovery
-
-| Symptom | Cause | Fix |
-|---|---|---|
-| `no server configured` / `no token configured` | no profile, env, or flags | run `hass-cli profile login`, or set `HASS_SERVER` + `HASS_TOKEN` |
-| `HTTP 401` | bad/expired token | regenerate the long-lived token, then `hass-cli profile login <name> --force` |
-| `profile "x" already has a valid token` | re-login to an active profile | pass `--force`, or `hass-cli profile remove x` first |
-| `authentication failed: auth_invalid` (WS) | token rejected on WS | same token as REST; regenerate |
-| `HTTP 404` on `config/automation/config/...` | `config` integration disabled | enable default_config / config integration |
-| TLS errors with self-signed cert | cert not trusted | add `--insecure` (dev only) |
-
-## Service-call errors
-
-| Symptom | Fix |
+| Trigger | Read |
 |---|---|
-| `entity light.x not found; did you mean ...` | use one of the named entities, or `hass-cli state list --domain light --search <word>` |
-| `"..." is not an entity id` | pass the entity_id alone (`light.kitchen`), not a name or a key list |
-| `HTTP 400` | a field name or value is wrong: `hass-cli service describe <domain.service>` lists them; colours, lists and objects go in `--data '{...}'` |
+| `no server configured`, `HTTP 401`, `auth_invalid`, TLS errors, profiles, env vars | [connection](references/ha-shared-connection.md) |
+| Quoting `--data` on PowerShell, `@file` input, output formats | [connection](references/ha-shared-connection.md) |
+| No typed command covers the request: `raw api`, `raw ws` | [raw access](references/ha-shared-raw.md) |
 
-Two failed calls in a row on the same request: stop and say what failed rather
-than trying more variations.
+## Safety and escalation
+
+- Act on what the user named. A name that matches several devices in different rooms is a question, not a guess; a request for "all lights" is not a reason to also switch fans.
+- Locks, alarms, garage doors and anything that opens the house: do what was asked, and say what changed. Do not unlock or disarm as a side step of another request.
+- Stopping a script or automation, deleting anything, restoring a backup and restarting Home Assistant are changes the user should hear about; the last three need their explicit request.
+- Never print a token. `hass-cli profile show` masks it; do not echo `HASS_TOKEN`.

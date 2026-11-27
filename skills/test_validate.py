@@ -108,6 +108,13 @@ class StructureTests(unittest.TestCase):
             validate.validate_no_source_citations(path, errors)
             self.assertEqual(len(errors), 1, errors)
 
+    def test_an_entity_id_starting_with_go_is_not_a_citation(self):
+        with Rooted() as root:
+            path = write(root / "ha-test" / "SKILL.md", "engines: tts.google_translate_en_com\n")
+            errors = []
+            validate.validate_no_source_citations(path, errors)
+            self.assertEqual(errors, [])
+
     def test_a_verb_row_that_only_points_at_help_is_refused(self):
         with Rooted() as root:
             skill = write(

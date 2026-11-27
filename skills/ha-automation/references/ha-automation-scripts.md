@@ -38,7 +38,7 @@ hass-cli workflow script trigger script.color_cycle
 - The `while` condition is checked before each step, so turning the light off during the delay ends the loop at its next check: an ordinary "turn the light off" works. A loop with `count` or `until` keeps running until it ends or is stopped with `workflow script stop`.
 - `mode: restart` makes running it again start over instead of queueing a second loop.
 - A delay of 1 second or more. Shorter steps flood the device and Home Assistant's log.
-- Colours: `hs_color: [hue, saturation]`, `rgb_color: [r, g, b]` or `color_name: red`. Only a light whose `supported_color_modes` includes a colour mode takes them; [`ha-lighting`](../../ha-lighting/SKILL.md) covers the modes.
+- Keep the `hs_color` line as written for any colour light, including one whose `supported_color_modes` lists only `xy`: Home Assistant converts it. Do not write `xy_color` by hand; a random `xy` pair is mostly outside the light's gamut, and `range(0, 1)` is always 0. A light with only `color_temp` or `brightness` takes no colour; [`ha-lighting`](../../ha-lighting/SKILL.md) covers the modes.
 - `action:` is the service key. Older configs say `service:`; both work, do not mix them in one file.
 
 To loop a fixed number of times, replace `while` with `count: 10`. To loop through a list, `for_each: [...]` with `{{ repeat.item }}` in the step.

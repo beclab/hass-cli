@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
@@ -19,7 +18,7 @@ func newLovelaceCmd(f *cmdutil.Factory) *cobra.Command {
 		Short:   "Manage Lovelace dashboards, configs, and resources",
 		Example: `  hass-cli lovelace dashboard list
   hass-cli lovelace config get --dashboard ops-room
-  hass-cli lovelace config save --dashboard ops-room --file dash.yaml`,
+  hass-cli lovelace config save --dashboard ops-room --data @dash.yaml`,
 	}
 	cmd.AddCommand(newLovelaceDashboardCmd(f))
 	cmd.AddCommand(newLovelaceConfigCmd(f))
@@ -117,22 +116,22 @@ func newLovelaceConfigCmd(f *cmdutil.Factory) *cobra.Command {
 	getCmd.Flags().BoolVar(&getForce, "force", false, "Force re-read from storage")
 	cmd.AddCommand(getCmd)
 
-	var saveDash, saveFile string
+	var saveDash, saveData string
 	saveCmd := &cobra.Command{
 		Use:   "save",
-		Short: "Save a dashboard config from a YAML/JSON file",
+		Short: "Save a dashboard config (--data: inline JSON, or @file with YAML or JSON)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if saveFile == "" {
-				return fmt.Errorf("--file is required")
+			if saveData == "" {
+				return fmt.Errorf("--data is required: the dashboard config as inline JSON, or @file with YAML or JSON")
 			}
-			data, err := os.ReadFile(saveFile)
+			data, err := readDataArg(saveData)
 			if err != nil {
 				return err
 			}
 			var config any
 			if err := yaml.Unmarshal(data, &config); err != nil {
-				return fmt.Errorf("parse %s: %w", saveFile, err)
+				return fmt.Errorf("--data is not YAML or JSON: %w", err)
 			}
 			return wsCall(f, cmd, map[string]any{
 				"type": "lovelace/config/save", "url_path": urlPathOrNil(saveDash), "config": config,
@@ -140,7 +139,7 @@ func newLovelaceConfigCmd(f *cmdutil.Factory) *cobra.Command {
 		},
 	}
 	saveCmd.Flags().StringVar(&saveDash, "dashboard", "", "Dashboard url_path (omit for default)")
-	saveCmd.Flags().StringVar(&saveFile, "file", "", "Config file (YAML or JSON)")
+	saveCmd.Flags().StringVar(&saveData, "data", "", "The config: inline JSON, or @file with YAML or JSON")
 	cmd.AddCommand(saveCmd)
 
 	var delDash string

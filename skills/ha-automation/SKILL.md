@@ -1,7 +1,7 @@
 ---
 name: ha-automation
 version: "0.0.0"
-description: "Scripts, automations and scenes: run one now, stop one that is running (a colour loop, a repeating script), make a device loop or repeat every few seconds, edit, list or delete them."
+description: "Scripts, automations and scenes: make a light or device loop, cycle colours or repeat every few seconds; stop one that is running; run, edit, list or delete them. 循环变色、每隔几秒、一直循环、停止循环、运行脚本、场景."
 compatibility: Requires hass-cli on PATH
 metadata:
   requires:

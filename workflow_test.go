@@ -188,3 +188,36 @@ func TestServiceCallReturnsResponse(t *testing.T) {
 		t.Fatalf("--response on a service without data should be refused, got %v", err)
 	}
 }
+
+// The REST service endpoint rejects a nested target with a bare 400, while the
+// WebSocket API and automation YAML use it; the call sends its keys flat.
+func TestServiceCallLiftsTarget(t *testing.T) {
+	srv := mockHA(t)
+	defer srv.Close()
+	t.Setenv("HASS_SERVER", srv.URL)
+	t.Setenv("HASS_TOKEN", "test-token")
+	haRequests.reset()
+
+	if _, _, err := runAll(t, "service", "call", "light.turn_off", "--data", `{"target":{"area_id":"kitchen"}}`); err != nil {
+		t.Fatalf("call with a nested target failed: %v", err)
+	}
+	sent := requested("POST /api/services/light/turn_off")
+	if len(sent) != 1 || !strings.Contains(sent[0], `"area_id":"kitchen"`) || strings.Contains(sent[0], `"target"`) {
+		t.Fatalf("the target was not sent flat: %v", sent)
+	}
+}
+
+// Entities and devices come from integrations: Home Assistant has no create
+// for either, removes an entity with entity_registry/remove, and removes a
+// device only through its integration.
+func TestRegistryVerbsHomeAssistantHas(t *testing.T) {
+	for _, args := range [][]string{
+		{"registry", "entity", "create", "--data", `{"name":"x"}`},
+		{"registry", "device", "create", "--data", `{"name":"x"}`},
+		{"registry", "device", "delete", "abc"},
+	} {
+		if _, _, err := runAll(t, args...); err == nil {
+			t.Errorf("%v should not exist", args)
+		}
+	}
+}

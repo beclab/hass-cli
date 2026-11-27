@@ -92,6 +92,7 @@ func newRegistryCmd(f *cmdutil.Factory, name string) *cobra.Command {
 		Use:   name,
 		Short: fmt.Sprintf("Operate on the %s registry", name),
 	}
+	refuseUnknownVerbs(cmd)
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list",
@@ -106,14 +107,42 @@ func newRegistryCmd(f *cmdutil.Factory, name string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderRawCols(f, raw, fmt.Sprintf("ID=%s_id,NAME=name", name))
+			return renderRawCols(f, raw, registryListCols[name])
 		},
 	})
 
-	for _, op := range []string{"create", "update", "delete"} {
+	for _, op := range registryOps[name] {
 		cmd.AddCommand(newRegistryOpCmd(f, name, op))
 	}
 	return cmd
+}
+
+// registryOps are the writes Home Assistant has per registry. Entities and
+// devices come from integrations, so neither can be created here, and a
+// device is removed through its integration, not the registry.
+var registryOps = map[string][]string{
+	"area":   {"create", "update", "delete"},
+	"floor":  {"create", "update", "delete"},
+	"label":  {"create", "update", "delete"},
+	"entity": {"update", "delete"},
+	"device": {"update"},
+}
+
+var registryListCols = map[string]string{
+	"area":   "ID=area_id,NAME=name,FLOOR=floor_id",
+	"floor":  "ID=floor_id,NAME=name,LEVEL=level",
+	"label":  "ID=label_id,NAME=name",
+	"entity": "ID=entity_id,NAME=name,AREA=area_id,PLATFORM=platform",
+	"device": "ID=id,NAME=name,USER_NAME=name_by_user,AREA=area_id",
+}
+
+// registryWSOp is the WebSocket verb behind a CLI verb: the entity registry
+// calls deleting "remove".
+func registryWSOp(name, op string) string {
+	if name == "entity" && op == "delete" {
+		return "remove"
+	}
+	return op
 }
 
 func newRegistryOpCmd(f *cmdutil.Factory, name, op string) *cobra.Command {
@@ -131,7 +160,7 @@ func newRegistryOpCmd(f *cmdutil.Factory, name, op string) *cobra.Command {
 		Short: fmt.Sprintf("%s a %s registry entry", op, name),
 		Args:  args,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			payload := map[string]any{"type": fmt.Sprintf("config/%s_registry/%s", name, op)}
+			payload := map[string]any{"type": fmt.Sprintf("config/%s_registry/%s", name, registryWSOp(name, op))}
 			if op != "create" {
 				payload[idKey] = args[0]
 			}

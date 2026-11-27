@@ -178,6 +178,23 @@ func explainCallError(err error, service string) error {
 	return err
 }
 
+// liftTarget moves a nested "target" object's keys to the top level. The
+// WebSocket API and automation YAML take {"target": {...}}, so that is what an
+// agent writes; the REST service endpoint only reads top-level keys and
+// rejects the object. A key already at the top level wins.
+func liftTarget(data map[string]any) {
+	target, ok := data["target"].(map[string]any)
+	if !ok {
+		return
+	}
+	delete(data, "target")
+	for k, v := range target {
+		if _, taken := data[k]; !taken {
+			data[k] = v
+		}
+	}
+}
+
 // targetKeys are the ways a service call can name what it acts on.
 var targetKeys = []string{"entity_id", "device_id", "area_id", "floor_id", "label_id", "target"}
 

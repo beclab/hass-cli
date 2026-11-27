@@ -37,21 +37,8 @@ func newWorkflowCmd(f *cmdutil.Factory, domain string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   domain,
 		Short: fmt.Sprintf("Operate on %ss", domain),
-		// An unknown verb's flags are not the error; the verb is.
-		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 {
-				return cmd.Help()
-			}
-			var verbs []string
-			for _, sub := range cmd.Commands() {
-				if sub.IsAvailableCommand() {
-					verbs = append(verbs, sub.Name())
-				}
-			}
-			return fmt.Errorf("unknown command %q for %q; it has: %s", args[0], cmd.CommandPath(), strings.Join(verbs, ", "))
-		},
 	}
+	refuseUnknownVerbs(cmd)
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list",

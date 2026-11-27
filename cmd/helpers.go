@@ -239,3 +239,23 @@ func renderValue(f *cmdutil.Factory, v any) error {
 	}
 	return r.Render(v)
 }
+
+// refuseUnknownVerbs makes a command group fail on a verb it does not have,
+// naming the ones it does. Cobra otherwise prints the group's help and exits
+// 0, which an agent reads as success. An unknown verb's flags are not the
+// error, so they are let through to reach this.
+func refuseUnknownVerbs(group *cobra.Command) {
+	group.FParseErrWhitelist = cobra.FParseErrWhitelist{UnknownFlags: true}
+	group.RunE = func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return cmd.Help()
+		}
+		var verbs []string
+		for _, sub := range cmd.Commands() {
+			if sub.IsAvailableCommand() {
+				verbs = append(verbs, sub.Name())
+			}
+		}
+		return fmt.Errorf("unknown command %q for %q; it has: %s", args[0], cmd.CommandPath(), strings.Join(verbs, ", "))
+	}
+}

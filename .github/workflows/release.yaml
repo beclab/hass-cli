@@ -72,6 +72,12 @@ jobs:
             exit 1
           fi
           echo "binary version OK: $actual"
+          skills=$("$binary" skill show ha-shared | sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' | head -n1)
+          if [ "$skills" != "$expected_stripped" ]; then
+            echo "::error::embedded skills declare version '$skills', expected '$expected_stripped'; check the stamp hook in .goreleaser.yaml"
+            exit 1
+          fi
+          echo "skills version OK: $skills"
 
   publish-npm:
     needs: [goreleaser]

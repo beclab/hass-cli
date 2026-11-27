@@ -1,5 +1,10 @@
 version: 2
 project_name: hass-cli
+before:
+  hooks:
+    # The embedded skills carry the release they ship in; what is committed is
+    # the 0.0.0 placeholder, which a snapshot build keeps.
+    - 'python3 skills/stamp.py {{ if .IsSnapshot }}0.0.0{{ else }}{{ .Version }}{{ end }}'
 builds:
   - env:
       - CGO_ENABLED=0

@@ -1,7 +1,7 @@
 ---
 name: ha-lighting
 version: "0.0.0"
-description: "Light colour, colour temperature, brightness, effects and transitions; fan speed, oscillation and presets; whole rooms of lights at once. Plain on/off is the front door's two commands."
+description: "One-off light settings: colour, colour temperature, brightness, effects, transitions; fan speed and presets; a whole room of lights at once. 调颜色、调亮度、色温. A light that loops, cycles colours or changes every few seconds (循环变色) is ha-automation."
 compatibility: Requires hass-cli on PATH
 metadata:
   requires:

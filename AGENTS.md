@@ -32,9 +32,13 @@ Working rules for this repository (the public release directory for hass-cli).
   `SupervisorToken` is parsed but reserved (not yet wired); the Supervisor
   proxy path uses `HASS_TOKEN`.
 - `internal/output/` — table/json/yaml/ndjson rendering with `--columns`/`--sort-by`.
-- `skills/` — agent skills, embedded into the binary. Each control skill carries
-  its own two-command quick control; `ha-shared` holds connection and error
-  recovery. Descriptions are one short sentence: every agent request lists them.
+- `skills/` — agent skills and their `references/`, embedded into the binary and
+  written out whole by `skill export`. `ha-shared` is the one front door: the
+  two-command control, when a call needs checking, and safety live there only;
+  every other skill links to it and keeps what is its own. The rules are in
+  `skills/README.md` and checked by `skills/validate.py` in CI. Frontmatter
+  `version` stays `"0.0.0"`: the release stamps it (`skills/stamp.py`, a
+  GoReleaser hook), so the binary and its skills always agree.
 
 ## Conventions
 

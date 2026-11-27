@@ -12,7 +12,7 @@ func newBackupCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "List, create, inspect, delete, and restore backups",
 		Example: `  hass-cli backup list
   hass-cli backup create --auto
-  hass-cli backup restore <slug> --data '{"agent_id":"backup.local"}'`,
+  hass-cli backup restore <backup_id> --data '{"agent_id":"backup.local"}'`,
 	}
 
 	cmd.AddCommand(&cobra.Command{
@@ -92,7 +92,7 @@ func newBackupCmd(f *cmdutil.Factory) *cobra.Command {
 		Short: "Restore a backup (--data must include agent_id)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fields, err := parseDataObject(restoreData)
+			fields, err := requireDataField(restoreData, "agent_id")
 			if err != nil {
 				return err
 			}

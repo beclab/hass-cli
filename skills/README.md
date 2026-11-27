@@ -1,123 +1,107 @@
 # hass-cli skills
 
-LLM-readable skills (one folder per command tree) that teach a Claude-style
-agent how to drive `hass-cli` against a live Home Assistant instance. Each
-folder contains a single `SKILL.md` whose YAML front-matter declares the
-skill's name, description, version, and runtime requirements.
+LLM-readable skills, one folder per command tree or task family, that teach an agent to drive `hass-cli` against a live Home Assistant. They are compiled into the binary and reach a machine through it: `hass-cli skill list`, `skill show <name>`, or `skill export <dir>` for the whole tree including `references/`.
 
-The bundled copy ships inside the binary and is browsable with
-`hass-cli skill list` / `hass-cli skill show <name>`.
+These rules follow the olares-cli skill suite (`Olares/cli/skills/README.md`), which reached them by the same route this suite was on: patching each observed failure into whichever file the agent happened to be reading. `validate.py` enforces what a machine can check; the rest is review.
 
 ## Layout
 
 ```
 skills/
-├── README.md          # this file (authoring spec)
-├── ha-shared/
-│   └── SKILL.md        # foundation: connection, transport, output, verb suite map, error recovery
-├── ha-states/
+├── README.md            # this file
+├── validate.py          # the checks, run in CI
+├── stamp.py             # writes the release into every frontmatter
+├── ha-shared/           # front door: every other skill reads it first
+│   ├── SKILL.md
+│   └── references/      # connection, auth, raw access: read only when triggered
+├── ha-lighting/
 │   └── SKILL.md
-├── ha-services/
-│   └── SKILL.md
-├── ...                 # one folder per command tree (see the suite map in ha-shared)
+├── ...
 └── ha-workflow-automation-builder/
-    └── SKILL.md        # playbook skill (multi-step recipe, not a 1:1 command wrapper)
-
-# Optional, when a single SKILL.md would exceed its size budget:
-ha-<area>/
-├── SKILL.md
-└── references/
-    ├── ha-<area>-<verb>.md
-    └── ...
+    └── SKILL.md         # playbook: a recipe over several command trees
 ```
 
-**Install the whole suite together.** The skills are designed as one set and
-cross-reference each other by relative path (e.g. `../ha-shared/SKILL.md`).
-Installing only a subset leaves those links dangling. `ha-shared` is the
-foundation: every other skill assumes it for connection setup, transport
-routing, the `--data` quoting rules, and auth-error recovery.
+**Install the whole suite together.** Skills link each other by relative path (`../ha-shared/SKILL.md`); a subset leaves those links dangling. Use `skill export`, which writes the tree as it was compiled.
+
+## The front door
+
+`ha-shared/SKILL.md` is read before any other skill, so everything that more than one skill needs lives there once: how to find an entity and call a service on it, when a call needs checking afterwards, which skill owns which request, and the rules no domain skill may contradict (a device a script or automation is driving is stopped there first). Every other skill opens with:
+
+```markdown
+> **Shared front door:** read [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md) first; it holds the two-command control and the rules every request follows.
+```
+
+A domain skill then carries only what is its own: colour modes for lights, HVAC modes for climate, the shape of a script for automation. It does not repeat the two commands, the confirmation rule, or the suite map. A rule copied into N skills drifts in N places; that is how the "do not check the state afterwards" line ended up in two files with neither saying when it does not hold.
+
+Connection, auth recovery and raw REST/WebSocket access are in `ha-shared/references/`, because a request that connects needs none of them.
 
 ## Writing style
 
-`SKILL.md` is NOT a copy of `hass-cli <command> --help`. The body defers to
-`--help` for authoritative flag syntax and only carries what `--help` cannot:
+`SKILL.md` is the agent's decision layer, not a command manual. Flag syntax is `hass-cli <command> --help`'s job. A skill keeps what changes the agent's next step:
 
-- **When to use** — the skill's scope / trigger phrases, plus a pointer to the
-  suite map in `ha-shared` for outbound routing.
-- **Cross-cutting concepts** referenced by ≥2 subcommands (e.g. the WebSocket
-  `config/*_registry/*` model, the `@file` `--data` convention).
-- **Client-side constraints that bite users** (server-side auto-rename traps,
-  required fields the API rejects without, Supervisor-only commands, …).
-- **Error → fix matrix** that is not in `--help`.
-- **Verb index** — one row per verb pointing at `--help` and (if it exists)
-  `references/<skill>-<verb>.md`.
+- **When to use**: the trigger scope and the one or two neighbouring skills most easily confused with it.
+- **Fast paths**: the first table. It routes one intent (what the user asked for, in their words: "make the light cycle colours", "stop that") to the files to read and the command it ends at. An agent arrives holding a goal, not a verb.
+- **Verb index**: the command tree, second, under `## Verb index`, whose last column is `Read when triggered`. Every row must change a decision; a row that only says `<cmd> --help` is collapsed into one "everything else is `--help`" row.
+- **Error → fix**: only what the CLI output cannot resolve by itself. If stderr already names the cause and the next action, do not copy it.
+- **Safety and escalation**: closes every skill under that name. Missing input, ambiguous targets, actions beyond what was asked.
 
-What to leave out:
+Three names are fixed and checked: `## Fast paths`, `## Verb index`, `## Safety and escalation`, plus the front-door block above.
 
-- Per-flag descriptions (they live in `--help`).
-- Go source-path citations like `cmd/state.go` — agents don't read the source.
-- Internal package walkthroughs or "Source layout" sections.
-- "What's NOT here yet" / future-work sections — keep skills to current scope.
+**Point at a section with a link, never with its name in prose.** `(see "Quick control")` resolves for nobody and survives no rename; `[quick control](../ha-shared/SKILL.md#control-a-device)` fails the build when the heading moves.
 
-Target sizes: `SKILL.md` ≤ 250 lines (≤ 300 for the most complex command tree);
-each reference ≤ 150 lines.
+### CLI and skill responsibilities
 
-**Reference depth (one level deep):** reference files link **directly from a
-`SKILL.md`**, never reference→reference. A concept buried two hops down is
-unreliable because agents preview deep files instead of reading them whole. Any
-reference longer than ~100 lines gets a table of contents at the top.
+- A fact known at the moment of a request belongs in the CLI's output: what failed, why, and the next command. `service call` naming the script that is still driving a light it just turned off is one; a wrong save id refused locally with the right form is another.
+- Skills carry what spans commands: multi-step flows, Home Assistant's model (script id versus entity id, UI versus YAML storage), and safety decisions.
+- A CLI message and the skill cleanup it allows ship together. Do not delete guidance until the released CLI says it.
 
-## Single source of truth
+### Ground every claim in the implementation
 
-Facts used by **≥2 skills** are defined **once** and linked, never copied:
+Before documenting what a verb does, read the command. `workflow script trigger` was documented as working for months while it called a service Home Assistant does not have. Keep the verification in the commit message; no Go source paths in what ships (`validate.py` refuses them).
 
-- **Connection, transport routing, output formats, `--data` quoting, and
-  auth-error recovery** live once in [`ha-shared/SKILL.md`](ha-shared/SKILL.md).
-  Every runtime skill assumes it as a prerequisite.
-- **Routing has one home too: the verb / skill suite map** in `ha-shared`. The
-  canonical intent → command → skill table for the whole suite lives there. Each
-  skill folds routing into its `## When to use` section (trigger phrases + a
-  pointer to the suite map) rather than repeating the table.
-- When a fact is genuinely two skills' own angle, let each keep its framing
-  (e.g. `ha-registry` describes a device as a registry row; `ha-gateway`
-  describes the same device as a radio node). Only the shared mechanics are
-  centralized.
+**One representation per fact within a file.** Do not encode the same thing in two tables.
 
-## Front-matter contract
+## Sizes and the read path
 
-`hass-cli skill list` reads `description` from the front-matter, and the loader
-([`cmd/skill.go`](../cmd/skill.go)) expects a YAML block fenced by `---`. Each
-`SKILL.md` declares:
+Per-file ceilings: `SKILL.md` ≤ 250 lines, each reference ≤ 150.
+
+The budget an agent pays is the **read path**: `ha-shared/SKILL.md`, plus the domain `SKILL.md`, plus the references a task triggers, everything before its first correct command. Each row of `## Fast paths` is totalled by `validate.py` and held to **250 lines**. Every voice request pays this path, so keep the front door short.
+
+**Split references on triggers, not on line count.** A reference serves one trigger. Two questions an agent would never ask on the same task are two files, even at 40 lines.
+
+**One level deep.** Every reference is linked from its own `SKILL.md`. A reference may point at a sibling reference of the same skill. A skill reaches a peer through the peer's `SKILL.md`, never its references; `ha-shared`'s references are the one exception, and only from a `SKILL.md`.
+
+No table of contents: the `##` headings are the structure.
+
+What to leave out: per-flag descriptions, error strings the CLI already prints, Go source paths, "Source layout" walkthroughs, "not implemented yet" sections.
+
+## Frontmatter
 
 ```yaml
 ---
-name: ha-states                       # required; must match the folder slug
-version: 0.1.0                        # recommended; semver, bump per release
-description: "..."                    # required; ≤ 1024 chars, front-loaded with triggers
+name: ha-lighting                      # the folder name
+version: "0.0.0"                       # placeholder; the release stamps it
+description: "One line: what it does and the requests it is for."
+compatibility: Requires hass-cli on PATH
 metadata:
   requires:
-    bins: ["hass-cli"]                # gates the skill behind hass-cli on PATH
-  cliHelp: "hass-cli state --help"    # the command tree this skill documents
+    bins: ["hass-cli"]
 ---
 ```
 
-Rules:
+- `description` is one physical line (`hass-cli skill list` reads one line per field) and at most 1024 characters. Every agent request lists all of them, so front-load the words a user says ("loop", "every few seconds", "stop the script") and keep it to a sentence or two.
+- `version` is the hass-cli release the suite ships in. Do not edit it: what is committed is `0.0.0`, and GoReleaser runs `stamp.py` with the release version before compiling, so a binary and its skills always agree.
 
-- `name` MUST equal the folder name (the loader keys skills by folder).
-- `description` MUST be a single-line scalar ≤ 1024 characters. The loader's
-  front-matter parser reads one line per field, so do not wrap `description`
-  across lines. Put long trigger lists in the body's `## When to use`.
-- `version` is semver; bump it when the skill's guidance changes materially.
-- `metadata.requires.bins` MUST include `hass-cli`. The binary is not installed
-  by a skill registry — this line just gates the skill behind "you are on a host
-  that has `hass-cli` on PATH". Install the binary via npx / install script /
-  release archive (see the repo README).
+## Validating
 
-## Naming
+```bash
+python3 -m pip install -r skills/requirements.txt
+python3 -m unittest skills/test_validate.py
+python3 skills/validate.py
+```
 
-- Command-tree skills mirror the command: `ha-<command>` (e.g. `ha-state` →
-  `ha-states`, `ha-registry`, `ha-system`). Where the noun reads better
-  pluralized, prefer the existing folder name over renaming.
-- Playbook skills (multi-step recipes that orchestrate several commands rather
-  than wrapping one) use a descriptive suffix: `ha-workflow-audit`,
-  `ha-workflow-automation-builder`.
+CI runs all three. `validate.py` checks frontmatter, link and anchor targets, per-file ceilings, deep links into a peer's references, sections named in prose, verb-index rows that only say `--help`, the three fixed headings, the fast-path budget, a single suite version, and a few pinned facts that once went missing.
+
+## Names
+
+Command-tree skills mirror the command (`ha-states`, `ha-registry`, `ha-system`). Playbooks that orchestrate several trees carry a descriptive suffix (`ha-workflow-audit`, `ha-workflow-automation-builder`). Renaming a skill means updating every link to it.

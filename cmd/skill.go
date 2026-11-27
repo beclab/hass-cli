@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -73,7 +75,65 @@ func newSkillCmd() *cobra.Command {
 		},
 	})
 
+	cmd.AddCommand(&cobra.Command{
+		Use:   "export <dir>",
+		Short: "Write every bundled skill, references included, under <dir>",
+		Long: `Write every bundled skill under <dir>, one folder per skill, as compiled into
+this binary. Each skill folder is replaced whole, so a reference a newer
+release dropped does not linger. Other folders in <dir> are left alone.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if embeddedSkills == nil {
+				return fmt.Errorf("no skills embedded in this build")
+			}
+			n, err := exportSkills(embeddedSkills, args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "exported %d skills to %s\n", n, args[0])
+			return nil
+		},
+	})
+
 	return cmd
+}
+
+// exportSkills writes each top-level skill folder of src under dir, replacing
+// any folder of the same name, and returns how many skills it wrote.
+func exportSkills(src fs.FS, dir string) (int, error) {
+	entries, err := fs.ReadDir(src, ".")
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		target := filepath.Join(dir, e.Name())
+		if err := os.RemoveAll(target); err != nil {
+			return n, err
+		}
+		err := fs.WalkDir(src, e.Name(), func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			out := filepath.Join(dir, filepath.FromSlash(p))
+			if d.IsDir() {
+				return os.MkdirAll(out, 0o755)
+			}
+			data, err := fs.ReadFile(src, p)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(out, data, 0o644)
+		})
+		if err != nil {
+			return n, err
+		}
+		n++
+	}
+	return n, nil
 }
 
 // frontMatterField extracts a scalar field from a SKILL.md YAML front-matter

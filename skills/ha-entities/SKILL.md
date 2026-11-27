@@ -1,82 +1,89 @@
 ---
 name: ha-entities
-version: 0.3.0
-description: "Read or control entity domains without their own skill: sensors, buttons, numbers, selects, text, vacuums, weather, updates and the like."
+version: "0.0.0"
+description: "Sensors and the device types without their own skill: door and motion sensors, numbers, selects, buttons, robot vacuums, alarm panels and sirens, the weather forecast, updates, shopping and to-do lists, calendars. 扫地机、传感器、天气、购物清单、日历."
+compatibility: Requires hass-cli on PATH
 metadata:
   requires:
     bins: ["hass-cli"]
-  cliHelp: "hass-cli service call --help"
 ---
 
 # ha-entities
 
-The long tail of entity domains. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+> **Shared front door:** read [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md) first; it holds the two-command control and the rules every request follows.
 
-> Read with `state get`; control with `service call`. Find candidates with
-> `hass-cli state list --domain <domain>`.
+The long tail of entity domains: things that read (`sensor`, `binary_sensor`, `weather`), small settables (`number`, `select`, `text`, `button`), and a few appliances (`vacuum`, `alarm_control_panel`, `siren`, `update`, `todo`, `calendar`). `input_*` helpers are [`ha-helpers`](../ha-helpers/SKILL.md); history of a sensor is [`ha-states`](../ha-states/SKILL.md).
 
-## Read-only domains
+## Fast paths
 
-```bash
-hass-cli state get sensor.outdoor_temp -o json        # state + unit_of_measurement
-hass-cli state get binary_sensor.front_door -o json   # on/off (device_class for meaning)
-hass-cli state get weather.home -o json               # attributes: temperature, forecast
-hass-cli state get update.core -o json                # on = update available
-```
+| The user wants | Read | Ends at |
+|---|---|---|
+| A reading: "how warm is it outside", "is the window open" | this file | `state get`; the state and its unit are the answer |
+| The weather forecast | this file | `service call weather.get_forecasts` |
+| Start, stop or dock the vacuum | this file | `vacuum.start`, `vacuum.pause`, `vacuum.return_to_base` |
+| Arm or disarm the alarm | this file | `alarm_control_panel.alarm_arm_*` or `alarm_disarm` |
+| Set a number or pick an option on a device | this file | `number.set_value`, `select.select_option` |
+| Press a button entity | this file | `button.press` |
+| Add, tick off or read a shopping or to-do list | [lists and calendars](references/ha-entities-lists.md) | `todo.add_item`, `todo.update_item`, `todo.get_items` |
+| What is on the calendar, add an event | [lists and calendars](references/ha-entities-lists.md) | `calendar.get_events`, `calendar.create_event` |
 
-Weather forecast (it moved out of attributes) via service:
-
-```bash
-hass-cli service call weather.get_forecasts --data '{"entity_id":"weather.home","type":"daily"}'
-```
-
-## Settable entity domains
+## Reading
 
 ```bash
-hass-cli service call number.set_value     --data '{"entity_id":"number.brightness_limit","value":80}'
-hass-cli service call select.select_option --data '{"entity_id":"select.mode","option":"away"}'
-hass-cli service call text.set_value       --data '{"entity_id":"text.label","value":"hello"}'
-hass-cli service call button.press         --arguments entity_id=button.restart
-hass-cli service call update.install       --arguments entity_id=update.core
+hass-cli state list --domain sensor --search outdoor
+hass-cli state get sensor.outdoor_temperature -o json
 ```
 
-## Vacuum / alarm / siren / camera
+- A `sensor`'s state is a string with `attributes.unit_of_measurement`; say both ("12.5 °C"). `unavailable` or `unknown` means the device is not reporting, not a value.
+- A `binary_sensor` is `on` / `off`, and `attributes.device_class` says what that means: `door`, `window`, `opening` on is open; `motion`, `occupancy` on is detected; `moisture` on is wet; `battery` on is low. Answer in those words, not "on".
+- An `event.*` entity's state is the time of its last event; `attributes.event_type` is what happened (a doorbell press, a remote button).
+
+## Services that answer
+
+`weather.get_forecasts`, `todo.get_items` and `calendar.get_events` return data instead of changing state; `service call` prints that data.
 
 ```bash
-hass-cli service call vacuum.start         --arguments entity_id=vacuum.roomba
-hass-cli service call vacuum.return_to_base --arguments entity_id=vacuum.roomba
-
-hass-cli service call alarm_control_panel.alarm_arm_away --data '{"entity_id":"alarm_control_panel.home","code":"1234"}'
-hass-cli service call alarm_control_panel.alarm_disarm   --data '{"entity_id":"alarm_control_panel.home","code":"1234"}'
-
-hass-cli service call siren.turn_on --arguments entity_id=siren.alarm
-hass-cli raw api GET camera_proxy/camera.front   # snapshot bytes (binary; redirect to a file)
+hass-cli service call weather.get_forecasts --entity weather.home --data '{"type":"daily"}'
 ```
 
-## To-do lists (`todo.*`)
+The forecast is under `<entity_id>.forecast`; `type` is `daily`, `hourly` or `twice_daily`, whichever the integration supports. Today's conditions are the `weather.*` entity's own state and attributes, no service needed.
+
+## Setting
 
 ```bash
-hass-cli raw ws todo/item/list --data '{"entity_id":"todo.shopping"}' -o json
-hass-cli service call todo.add_item    --data '{"entity_id":"todo.shopping","item":"Milk"}'
-hass-cli service call todo.update_item --data '{"entity_id":"todo.shopping","item":"Milk","status":"completed"}'
-hass-cli service call todo.remove_item --data '{"entity_id":"todo.shopping","item":"Milk"}'
+hass-cli service call number.set_value --data '{"entity_id":"number.dishwasher_delay","value":2}'
+hass-cli service call select.select_option --data '{"entity_id":"select.washer_program","option":"Eco"}'
+hass-cli service call button.press --entity button.doorbell_chime
 ```
 
-## Calendars (`calendar.*`)
+- `number` stays inside `attributes.min` / `max`, in `step`; `select` takes one of `attributes.options` as written. `text.set_value` takes `value` up to `attributes.max`.
+- A `button` has no on or off; its state is when it was last pressed.
 
-```bash
-hass-cli state list --domain calendar
-# Events in a window (REST):
-hass-cli raw api GET 'calendars/calendar.personal?start=2026-06-01T00:00:00Z&end=2026-06-30T00:00:00Z' -o json
-# Create an event:
-hass-cli service call calendar.create_event --data '{"entity_id":"calendar.personal","summary":"Dentist","start_date_time":"2026-06-25T09:00:00","end_date_time":"2026-06-25T10:00:00"}'
-```
+## Vacuums
 
-## Tags (`tag.*`)
+State is `cleaning`, `docked`, `returning`, `idle`, `paused` or `error`. `vacuum.start`, `pause`, `stop`, `return_to_base`, `locate` (it beeps), `clean_spot`; `set_fan_speed` takes one of `attributes.fan_speed_list`. Cleaning one room is integration-specific: `hass-cli service list vacuum` and the integration's own domain (for example a `roborock.*` or `xiaomi_miio.*` service) show what this one has; `service describe` gives the fields.
 
-```bash
-hass-cli raw ws tag/list -o json     # NFC/QR tags; scans fire tag_scanned events
-```
+## Alarm panels
 
-When unsure which service a domain offers, `hass-cli service list -o json` then
-`hass-cli service describe <domain.service>`.
+State is `disarmed`, `armed_home`, `armed_away`, `armed_night`, `armed_vacation`, `arming`, `pending` or `triggered`. Services: `alarm_arm_home`, `alarm_arm_away`, `alarm_arm_night`, `alarm_arm_vacation`, `alarm_disarm`, `alarm_trigger`. When `attributes.code_format` is set, `code` is required: ask the user for it each time. `code_arm_required: false` means arming takes no code.
+
+## Verb index
+
+| Service | For | Read when triggered |
+|---|---|---|
+| `state get`, `state list --domain` | every reading | [reading](#reading) for what `on` means |
+| `weather.get_forecasts`, `todo.get_items`, `calendar.get_events` | data back | [services that answer](#services-that-answer) |
+| `number.set_value`, `select.select_option`, `text.set_value`, `button.press` | small settables | [setting](#setting) |
+| `vacuum.*` | the robot | [vacuums](#vacuums) |
+| `alarm_control_panel.*`, `siren.turn_on`, `siren.turn_off` | security | [alarm panels](#alarm-panels) and the rules below |
+| `update.install` | install an available update (state `on`) | only on an explicit request; `backup: true` where supported |
+| `todo.*`, `calendar.*` | lists and events | [lists and calendars](references/ha-entities-lists.md) |
+| Any other domain | `lawn_mower`, `image`, `camera`, `date`, `time`, ... | `hass-cli service list <domain>` shows its services; `service describe` gives the fields |
+
+## Safety and escalation
+
+- Disarming an alarm, turning a siren on or `alarm_trigger` happen only on the user's explicit request for it. Never as a step of another request, never to "test" it. An alarm code is the user's secret: do not repeat or store it.
+- `update.install` on Home Assistant Core, the OS or the Supervisor restarts the system: only when the user asked for that update, and say it will be unreachable for a few minutes. Updates in general: [`ha-system`](../ha-system/SKILL.md).
+- `button.press` can do anything the device defines (restart a router, open a gate): read the name and press only the one the user meant.
+- `state set` overwrites what Home Assistant shows but does not drive a device. Never use it to "set" a sensor, number or vacuum; that is a service call.
+- Removing to-do items or calendar events deletes the user's data: only the ones they named.

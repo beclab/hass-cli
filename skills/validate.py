@@ -28,7 +28,7 @@ REFERENCE_MAX_LINES = 150
 READ_PATH_MAX_LINES = 250
 FAST_PATHS_HEADINGS = ("Fast paths", "Symptom routing")
 PROSE_SECTION_RE = re.compile(r'\b(?:especially|see(?:\s+also)?|section)\s+"([^"\n]{2,80})"')
-SOURCE_CITATION_RE = re.compile(r"[\w.-]*(?:/[\w.-]+)*\w\.go(?::\d+)?")
+SOURCE_CITATION_RE = re.compile(r"[\w.-]*(?:/[\w.-]+)*\w\.go\b(?::\d+)?")
 TABLE_ROW_RE = re.compile(r"^\s*\|(?P<cells>.*)\|\s*$")
 BACKTICKED_RE = re.compile(r"`[^`]+`")
 # A skill's version is the hass-cli release it ships in (the tag without its

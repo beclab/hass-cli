@@ -1,125 +1,62 @@
 ---
 name: ha-gateway
-version: 0.2.0
-description: "Manage Zigbee (ZHA), Z-Wave JS, Matter and Thread networks: pair, remove and inspect devices."
+version: "0.0.0"
+description: "Zigbee (ZHA), Z-Wave, Matter and Thread networks: pair or add a new device, let devices join, remove a device from the network, check the coordinator, dongle or border router, back up a Zigbee network."
+compatibility: Requires hass-cli on PATH
 metadata:
   requires:
     bins: ["hass-cli"]
-  cliHelp: "hass-cli integration --help"
 ---
 
 # ha-gateway
 
-Radio gateways (a.k.a. coordinators / hubs / bridges) and their device networks.
-Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+> **Shared front door:** read [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md) first; it holds the two-command control and the rules every request follows.
 
-A gateway in Home Assistant is an **integration (config entry)** that owns a set
-of **devices**. So split the work:
+A gateway is a radio (a Zigbee or Z-Wave USB stick, a Matter server, a Thread border router) whose network carries devices that have no IP address of their own. In Home Assistant the gateway is one config entry, and every device on its network is a device of that entry. The entry's lifecycle (add, reload, remove the whole integration) is [`ha-integrations`](../ha-integrations/SKILL.md); naming a paired device and putting it in a room is [`ha-registry`](../ha-registry/SKILL.md). This skill is the network itself: joining, removing and inspecting devices on it.
 
-- Gateway integration lifecycle (add / reload / enable / disable / delete) ->
-  [`../ha-integrations/SKILL.md`](../ha-integrations/SKILL.md).
-- Renaming / assigning areas to the devices behind it ->
-  [`../ha-registry/SKILL.md`](../ha-registry/SKILL.md).
-- **Protocol-layer operations (pairing, joining nodes, networks, backups)** ->
-  this skill.
+## Fast paths
 
-These are radio-specific WebSocket commands and services that have no typed
-hass-cli command, so they are driven with `service call` and `raw ws`.
+| The user wants | Read | Ends at |
+|---|---|---|
+| Pair a new Zigbee device, "let devices join" | [Zigbee](references/ha-gateway-zigbee.md) | `service call zha.permit` |
+| Remove a Zigbee device from the network | [Zigbee](references/ha-gateway-zigbee.md) | `service call zha.remove` |
+| Add or remove a Z-Wave device, a dead Z-Wave node | [Z-Wave](references/ha-gateway-zwave.md) | the frontend for inclusion; `raw ws` for status |
+| Add a Matter device with its pairing code | [Matter and Thread](references/ha-gateway-matter-thread.md) | `raw ws matter/commission` |
+| Which Thread network or border router is in use | [Matter and Thread](references/ha-gateway-matter-thread.md) | `raw ws thread/list_datasets` |
+| "Is the Zigbee stick working", a whole network offline | this file | `integration list --domain zha`, then [`ha-integrations`](../ha-integrations/SKILL.md) |
 
 ## Find the gateway
 
 ```bash
-# which radio gateways exist
-hass-cli integration list -o json | rg '"domain": "(zha|zwave_js|matter|thread|otbr)"'
-# the devices a gateway exposes
-hass-cli registry device list -o json | rg -i 'zha|zwave|matter|thread'
+hass-cli integration list --domain zha          # also zwave_js, matter, thread, otbr
+hass-cli system hardware -o json                # the USB radio, on HA OS and Home Assistant hardware
 ```
 
-Z-Wave/Matter WS commands key off the gateway's `entry_id` (from
-`integration list`); ZHA addresses devices by their `ieee`.
+- No entry for the domain: that radio is not set up here, and its commands answer `unknown_command`. Adding it is a config flow in [`ha-integrations`](../ha-integrations/SKILL.md).
+- An entry not `loaded` takes every device on that network down with it. Fix the entry first; pairing cannot work until it is `loaded`.
+- Zigbee addresses a device by its `ieee` (`00:0d:6f:00:0a:90:69:e7`); Z-Wave and Matter commands take the Home Assistant `device_id`, which `hass-cli registry device list -o json` shows next to the device's name.
 
-## Zigbee (ZHA)
+## What the CLI can and cannot drive
 
-Pairing and removal are **services** (one-shot, CLI-friendly):
+The protocol commands have no typed hass-cli verb. One-shot services (`zha.permit`, `zha.remove`, `zwave_js.set_config_parameter`) go through `service call`; single-answer WebSocket commands through `raw ws`, as [raw access](../ha-shared/references/ha-shared-raw.md) describes.
 
-```bash
-hass-cli service call zha.permit --data '{"duration":60}'          # open join window
-hass-cli service call zha.permit --data '{"source_ieee":"xx:..","install_code":"..."}'
-hass-cli service call zha.remove --data '{"ieee":"00:0d:6f:..."}'  # remove a device
-hass-cli service call zha.reconfigure_device --data '{"ieee":"00:0d:6f:..."}'
-```
+Some operations are **subscriptions** that stream progress over minutes: Z-Wave inclusion and exclusion with its S2 PIN exchange, a Z-Wave NVM backup, discovering Thread routers. `raw ws` returns the first answer and disconnects, so it cannot carry them. For those, open Home Assistant's own pairing screen (Settings > Devices & services > the integration > Add device) and tell the user that is where to finish.
 
-Inspect and manage the network (WebSocket):
+## Verb index
 
-```bash
-hass-cli raw ws zha/devices                                        # all Zigbee devices
-hass-cli raw ws zha/device --data '{"ieee":"00:0d:6f:..."}'        # one device
-hass-cli raw ws zha/network/settings                               # coordinator/network info
-hass-cli raw ws zha/topology/update                                # refresh the mesh map
-hass-cli raw ws zha/network/change_channel --data '{"new_channel":20}'
-# coordinator backups
-hass-cli raw ws zha/network/backups/list
-hass-cli raw ws zha/network/backups/create
-hass-cli raw ws zha/network/backups/restore --data '{"backup":{...}}'
-```
+| Command | For | Read when triggered |
+|---|---|---|
+| `service call zha.permit`, `zha.remove` | Zigbee join window, removal | [Zigbee](references/ha-gateway-zigbee.md) |
+| `raw ws zha/...` | Zigbee devices, network settings, coordinator backups | [Zigbee](references/ha-gateway-zigbee.md) |
+| `raw ws zwave_js/...`, `service call zwave_js.*` | Z-Wave status, node health, device parameters | [Z-Wave](references/ha-gateway-zwave.md) |
+| `raw ws matter/...`, `thread/...`, `otbr/...` | Matter commissioning, Thread datasets, the border router | [Matter and Thread](references/ha-gateway-matter-thread.md) |
+| `integration list --domain <radio>` | whether the gateway itself is up | the gateway section above |
 
-## Z-Wave JS
+Zigbee2MQTT is not a Home Assistant radio integration: its devices arrive through MQTT, and pairing is done in Zigbee2MQTT's own frontend. Its devices are controlled like any other once they exist.
 
-Inclusion/exclusion and controller ops are WebSocket; most take `entry_id`:
+## Safety and escalation
 
-```bash
-ENTRY=$(hass-cli integration list --domain zwave_js -o json | jq -r '.[0].entry_id')
-hass-cli raw ws zwave_js/network_status --data "{\"entry_id\":\"$ENTRY\"}"
-hass-cli raw ws zwave_js/add_node --data "{\"entry_id\":\"$ENTRY\"}"        # start inclusion
-hass-cli raw ws zwave_js/stop_inclusion --data "{\"entry_id\":\"$ENTRY\"}"
-hass-cli raw ws zwave_js/remove_failed_node --data "{\"entry_id\":\"$ENTRY\",\"node_id\":5}"
-hass-cli raw ws zwave_js/node_status --data "{\"entry_id\":\"$ENTRY\",\"node_id\":5}"
-hass-cli raw ws zwave_js/rebuild_node_routes --data "{\"entry_id\":\"$ENTRY\",\"node_id\":5}"
-# controller NVM backup / restore, factory reset
-hass-cli raw ws zwave_js/backup_nvm --data "{\"entry_id\":\"$ENTRY\"}"
-hass-cli raw ws zwave_js/hard_reset_controller --data "{\"entry_id\":\"$ENTRY\"}"
-```
-
-Device values and config parameters are services:
-
-```bash
-hass-cli service call zwave_js.set_config_parameter --data '{"entity_id":"...","parameter":3,"value":1}'
-hass-cli service call zwave_js.refresh_value --data '{"entity_id":"..."}'
-```
-
-## Matter
-
-```bash
-hass-cli raw ws matter/commission_on_network --data '{"pin":12345678}'
-hass-cli raw ws matter/open_commissioning_window --data '{"device_id":"<ha_device_id>"}'
-hass-cli raw ws matter/node_diagnostics --data '{"device_id":"<ha_device_id>"}'
-hass-cli raw ws matter/remove_matter_fabric --data '{"device_id":"<ha_device_id>","fabric_index":N}'
-```
-
-## Thread / OpenThread Border Router (OTBR)
-
-```bash
-hass-cli raw ws thread/list_datasets                    # known Thread networks
-hass-cli raw ws thread/discover_routers                 # mDNS border routers
-hass-cli raw ws thread/set_preferred_dataset --data '{"dataset_id":"..."}'
-hass-cli raw ws otbr/info                               # local border router
-hass-cli raw ws otbr/create_network
-hass-cli raw ws otbr/set_channel --data '{"channel":15}'
-```
-
-## Limits (read before promising an outcome)
-
-- **Interactive / streaming flows** (Z-Wave inclusion DSK + S2 PIN exchange, ZHA
-  `zha/devices/reconfigure` progress, Matter/Z-Wave commissioning progress) are
-  WebSocket *subscriptions*. `raw ws` issues a single command and returns one
-  result; it can kick these off but cannot carry a multi-message exchange. For a
-  full secure pairing, finish in the HA frontend or open the join window with
-  `zha.permit` and let the device join.
-- **Cloud gateways** (Hue Cloud, Nest, ...) are added through an OAuth
-  `external_step` that needs a browser; not completable from the CLI (see
-  `ha-integrations`).
-- **Zigbee2MQTT** is not a native HA radio integration; it speaks MQTT. Drive it
-  with `hass-cli service call mqtt.publish` to its `zigbee2mqtt/bridge/request/*`
-  topics, or use its own frontend.
-- A command returns `unknown_command` / "integration not loaded" if that radio
-  integration is not installed on the target instance.
+- An open join window lets any nearby device of that protocol join. Open it only when the user is about to pair, for the shortest time that fits (60 seconds is usual), and say when it closes.
+- Removing a device from the network (`zha.remove`, a Z-Wave exclusion, a Matter fabric removal) needs the user to name that device; afterwards it must be reset and paired again to come back.
+- Changing a Zigbee channel, restoring a coordinator backup, forming a new Thread network or resetting a Z-Wave controller can drop every device on the network. Do these only on an explicit request, and say before acting that devices may need re-pairing.
+- Pairing codes and install codes come from the device or the user; never guess one. Two refused codes in a row: stop and ask the user to read it again.

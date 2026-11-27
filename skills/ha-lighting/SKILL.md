@@ -1,93 +1,92 @@
 ---
 name: ha-lighting
-version: 0.3.2
-description: "Turn lights, switches and fans on or off, dim them, set colour or colour temperature, set fan speed. The skill for 'turn on the light' or 'turn off the fan'."
+version: "0.0.0"
+description: "Light colour, colour temperature, brightness, effects and transitions; fan speed, oscillation and presets; whole rooms of lights at once. Plain on/off is the front door's two commands."
+compatibility: Requires hass-cli on PATH
 metadata:
   requires:
     bins: ["hass-cli"]
-  cliHelp: "hass-cli service call --help"
 ---
 
 # ha-lighting
 
-Lights, switches, fans. Connection or auth trouble: [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md).
+> **Shared front door:** read [`../ha-shared/SKILL.md`](../ha-shared/SKILL.md) first; it holds the two-command control and the rules every request follows.
 
-## Quick control (most requests)
+What lights, switches and fans take beyond on and off. A light that should keep changing (a colour loop, a fade every few minutes) is a script: [`ha-automation`](../ha-automation/SKILL.md).
 
-Two commands turn an existing device on or off or set it. Do not load other
-skills, run `service describe`, or check the state afterwards.
+## Fast paths
+
+| The user wants | Read | Ends at |
+|---|---|---|
+| A colour, a warmth, a brightness | this file | one `light.turn_on` with the field |
+| Every light in a room or on a floor | this file | one call with `area_id` or `floor_id` |
+| Fan speed, oscillation, a preset | this file | `fan.set_percentage`, `fan.oscillate`, `fan.set_preset_mode` |
+| The light to cycle colours or keep changing | [`ha-automation`](../ha-automation/SKILL.md) | a script |
+
+## Lights
+
+Every setting is one `light.turn_on`, which also switches the light on:
 
 ```bash
-# 1. Find it by name: a few rows, not the whole house
-hass-cli state list --domain light --search kitchen
-
-# 2. Call the service on the entity_id from step 1
-hass-cli service call light.turn_on --entity light.kitchen
-hass-cli service call light.turn_off --entity light.kitchen
-hass-cli service call switch.turn_off --entity switch.porch
-hass-cli service call fan.turn_on --entity fan.bedroom
-
-# Colour, brightness, warmth: one light.turn_on, which also switches it on
 hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_name":"yellow"}'
-hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":40}'
-hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_temp_kelvin":2700}'
-```
-
-Colours by name (`yellow`, `red`, `warmwhite`...) or `rgb_color` work on every
-colour light: Home Assistant converts them to the light's own mode (`xy`, `hs`).
-Only a light whose `supported_color_modes` is just `color_temp` cannot take a
-colour; give it `color_temp_kelvin` instead.
-
-The call prints the entities it changed: that is the confirmation. `No entity
-changed state` means it was already that way. No row: search one word, another
-language, or the domain alone. Several equally likely rows: ask which one.
-
-> No `hass-cli light` command — drive everything with `service call`.
-
-## Lights (`light.*`)
-
-```bash
-hass-cli service call light.turn_on  --arguments entity_id=light.kitchen
-hass-cli service call light.turn_off --arguments entity_id=light.kitchen
-hass-cli service call light.toggle   --arguments entity_id=light.kitchen
-
-# Brightness: brightness_pct 0-100, or brightness 0-255
-hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":30}'
-
-# Color temperature (warm/cool). Kelvin: ~2700 warm, ~6500 cool
-hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_temp_kelvin":2700}'
-
-# RGB color
 hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","rgb_color":[255,120,0]}'
-
-# Transition (seconds) and effect
-hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":80,"transition":3}'
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","color_temp_kelvin":2700}'
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","brightness_pct":30,"transition":3}'
+hass-cli service call light.turn_on --data '{"entity_id":"light.kitchen","effect":"colorloop"}'
 ```
 
-Check what a light supports: `hass-cli state get light.kitchen -o json` →
-`attributes.supported_color_modes`, `effect_list`, `min/max_color_temp_kelvin`.
+| Field | Values |
+|---|---|
+| `brightness_pct` | 0 to 100; `brightness_step_pct: -20` dims relative to now |
+| `color_name` | CSS names: `red`, `yellow`, `warmwhite`, ... |
+| `rgb_color`, `hs_color` | `[r, g, b]` 0 to 255; `[hue 0-360, saturation 0-100]` |
+| `color_temp_kelvin` | about 2700 warm to 6500 cool |
+| `transition` | seconds to fade over |
+| `effect` | one of the light's own `effect_list` |
 
-## Switches (`switch.*`)
+What a light takes is in its attributes: `hass-cli state get light.kitchen -o json`, then `supported_color_modes`, `effect_list`, `min_color_temp_kelvin` / `max_color_temp_kelvin`.
+
+- A light whose modes include `hs`, `xy`, `rgb`, `rgbw` or `rgbww` takes any colour field; Home Assistant converts it to the light's own mode.
+- A light with only `color_temp` cannot take a colour: offer the nearest warmth instead.
+- A light with only `onoff` takes no brightness; `brightness` mode takes brightness but no colour.
+- `effect` names are the device's own; use one from `effect_list` as written.
+
+## Switches
+
+A `switch.*` is on or off: `turn_on`, `turn_off`, `toggle`. A plug that powers a lamp is a switch, so a "lamp" that does not show up under `--domain light` is often one; search without `--domain`.
+
+## Fans
 
 ```bash
-hass-cli service call switch.turn_on  --arguments entity_id=switch.porch
-hass-cli service call switch.toggle   --arguments entity_id=switch.porch
-```
-
-## Fans (`fan.*`)
-
-```bash
-hass-cli service call fan.turn_on        --arguments entity_id=fan.bedroom
 hass-cli service call fan.set_percentage --data '{"entity_id":"fan.bedroom","percentage":66}'
-hass-cli service call fan.oscillate      --data '{"entity_id":"fan.bedroom","oscillating":true}'
+hass-cli service call fan.oscillate --data '{"entity_id":"fan.bedroom","oscillating":true}'
 hass-cli service call fan.set_preset_mode --data '{"entity_id":"fan.bedroom","preset_mode":"sleep"}'
+hass-cli service call fan.set_direction --data '{"entity_id":"fan.bedroom","direction":"reverse"}'
 ```
 
-## Targeting many at once
+Presets come from the fan's `preset_modes` attribute. "Faster" or "slower" is `fan.increase_speed` / `fan.decrease_speed`.
 
-Use a target instead of a single entity:
+## Many at once
+
+A target names an area, floor or label instead of entities; the ids come from [`ha-registry`](../ha-registry/SKILL.md):
 
 ```bash
-hass-cli service call light.turn_off --data '{"target":{"area_id":"living_room"}}'
-hass-cli service call light.turn_on  --data '{"target":{"label_id":"downstairs"},"brightness_pct":50}'
+hass-cli service call light.turn_off --data '{"area_id":"living_room"}'
+hass-cli service call light.turn_on --data '{"floor_id":"upstairs","brightness_pct":50}'
 ```
+
+## Verb index
+
+| Service | For | Read when triggered |
+|---|---|---|
+| `light.turn_on` | every light setting | the field table above |
+| `light.turn_off`, `light.toggle` | on and off; `transition` fades | none |
+| `switch.*` | `turn_on`, `turn_off`, `toggle` | none |
+| `fan.*` | speed, oscillation, direction, presets | the fans section above |
+| Anything else on these domains | | `hass-cli service describe <domain.service>` lists its fields; [`ha-services`](../ha-services/SKILL.md) |
+
+## Safety and escalation
+
+- "All the lights" means lights. Switches can be heaters, pumps or a server's power: include a switch only when the user named it or it is clearly a light.
+- An area-wide `turn_off` at night can leave someone in the dark: when the request was one light, call one light.
+- A light that turns back on or keeps changing after the call is driven by a script or automation; the call prints a `Note:` naming it, and [the front door](../ha-shared/SKILL.md#did-it-work) says what to do.

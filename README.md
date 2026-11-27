@@ -94,8 +94,9 @@ List commands set sensible default table columns; pass `--columns` to override.
 
 Any `--data` flag also accepts `@file.json` to read JSON from a file. On Windows
 PowerShell prefer `@file.json`, since inline JSON quoting is unreliable there.
-Commands that take YAML/JSON documents (`workflow save`, `lovelace config save`,
-`energy prefs save`, `template`) accept `--file`.
+Commands that take a whole document (`workflow save`, `lovelace config save`,
+`energy prefs save`) also read YAML from `--data @file.yaml`; `template` takes
+`--file`.
 
 ## Commands
 
@@ -147,10 +148,10 @@ Automations, scripts, and scenes.
 
 ```bash
 hass-cli workflow automation list
-hass-cli workflow automation save my_auto --file my_auto.yaml
-hass-cli workflow automation trigger my_auto
+hass-cli workflow automation save my_auto --data @my_auto.yaml
+hass-cli workflow automation trigger automation.my_auto
 hass-cli workflow script reload
-hass-cli workflow scene get scene.movie_time
+hass-cli workflow script stop script.color_cycle
 ```
 
 ### Integrations
@@ -187,7 +188,7 @@ Dashboards, their stored configs, and custom resources (WebSocket-only).
 hass-cli lovelace dashboard list
 hass-cli lovelace dashboard create --data '{"url_path":"ops-room","title":"Ops"}'
 hass-cli lovelace config get --dashboard ops-room
-hass-cli lovelace config save --dashboard ops-room --file dash.yaml
+hass-cli lovelace config save --dashboard ops-room --data @dash.yaml
 hass-cli lovelace resource list
 ```
 
@@ -207,7 +208,7 @@ hass-cli assist devices
 
 ```bash
 hass-cli energy prefs get
-hass-cli energy prefs save --file energy.yaml      # or --data '{...}'
+hass-cli energy prefs save --data @energy.yaml     # or --data '{...}'
 hass-cli energy validate
 hass-cli statistics list
 hass-cli statistics metadata --ids sensor.grid_consumption

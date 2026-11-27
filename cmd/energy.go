@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/beclab/hass-cli/internal/cmdutil"
 	"github.com/spf13/cobra"
@@ -16,7 +15,7 @@ func newEnergyCmd(f *cmdutil.Factory) *cobra.Command {
 		Use:   "energy",
 		Short: "Energy dashboard preferences and validation",
 		Example: `  hass-cli energy prefs get
-  hass-cli energy prefs save --file energy.yaml
+  hass-cli energy prefs save --data @energy.yaml
   hass-cli energy validate`,
 	}
 
@@ -51,35 +50,28 @@ func newEnergyCmd(f *cmdutil.Factory) *cobra.Command {
 		}),
 	})
 
-	var saveData, saveFile string
+	var saveData string
 	saveCmd := &cobra.Command{
 		Use:   "save",
-		Short: "Save energy preferences (--data JSON or --file YAML/JSON)",
+		Short: "Save energy preferences (--data: inline JSON, or @file with YAML or JSON)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if saveData == "" {
+				return fmt.Errorf("--data is required: the preferences as inline JSON, or @file with YAML or JSON")
+			}
+			raw, err := readDataArg(saveData)
+			if err != nil {
+				return err
+			}
 			var body map[string]any
-			switch {
-			case saveFile != "":
-				raw, err := os.ReadFile(saveFile)
-				if err != nil {
-					return err
-				}
-				if err := yaml.Unmarshal(raw, &body); err != nil {
-					return fmt.Errorf("parse %s: %w", saveFile, err)
-				}
-			default:
-				var err error
-				body, err = requireData(saveData)
-				if err != nil {
-					return err
-				}
+			if err := yaml.Unmarshal(raw, &body); err != nil || len(body) == 0 {
+				return fmt.Errorf("--data must be a non-empty preferences object (YAML or JSON): %v", err)
 			}
 			body["type"] = "energy/save_prefs"
 			return wsCall(f, cmd, body)
 		},
 	}
-	saveCmd.Flags().StringVar(&saveData, "data", "", "Preferences as JSON (or @file.json)")
-	saveCmd.Flags().StringVar(&saveFile, "file", "", "Preferences file (YAML or JSON)")
+	saveCmd.Flags().StringVar(&saveData, "data", "", "The preferences: inline JSON, or @file with YAML or JSON")
 	prefs.AddCommand(saveCmd)
 	cmd.AddCommand(prefs)
 
